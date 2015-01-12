@@ -69,8 +69,8 @@ Logging
 -------
 
 The project uses [bunyan-java](https://github.com/timboudreau/bunyan-java) for
-logging in JSON format - [more about bunyan-java](http://timboudreau.com/blog/bunyan/read),
-making it easy to collect metrics and stats and process log files using the
+logging in JSON format - [more about bunyan-java here](http://timboudreau.com/blog/bunyan/read).
+That makes it easy to collect metrics and stats and process log files using the
 `bunyan` command-line utility (to get that, install [NodeJS](http://nodejs.org)
 and then run `nbm install -g bunyan` on the command-line).
 
