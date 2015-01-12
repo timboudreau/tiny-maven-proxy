@@ -1,0 +1,12 @@
+*.class
+nbactions.xml
+
+# Package Files #
+*.jar
+*.war
+*.ear
+*.orig
+*.iml
+.idea/*
+target/
+
