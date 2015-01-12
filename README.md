@@ -12,10 +12,11 @@ you.
 It is a tiny server you can run with `java -jar` somewhere on your network,
 and configure Maven to use.  It is written with [acteur](http://timboudreau.com/blog/updatedActeur/read)
 and Netty, meaning that it is asynchronous, with a small memory footprint
-and low memory usage.
+and low memory usage (microscopic if you're used to Java EE - `-Xmx12M` is
+reasonable).
 
 You give it a list of repository URLs to proxy, and a folder to cache files
-in, and run it.  That's it.
+in, and run it.  Then configure you `~/.m2/settings.xml` to use it.  That's all.
 
 Download [a recent build here](http://timboudreau.com/builds/job/tiny-maven-proxy/)
 
