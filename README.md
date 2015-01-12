@@ -12,7 +12,7 @@ you.
 It is a tiny server you can run with `java -jar` somewhere on your network,
 and configure Maven to use.  It is written with [acteur](http://timboudreau.com/blog/updatedActeur/read)
 and Netty, meaning that it is asynchronous, with a small memory footprint
-and low memory usage (microscopic if you're used to Java EE - `-Xmx12M` is
+and low memory usage (microscopic if you're used to Java EE - `-Xmx16M` is
 reasonable).
 
 You give it a list of repository URLs to proxy, and a folder to cache files
