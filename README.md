@@ -79,3 +79,15 @@ To-Dos
 ------
 
  * Clean out `-SNAPSHOT` dependencies periodically
+
+
+Under The Hood
+--------------
+
+Tiny Maven Proxy uses [netty-http-client](https://github.com/timboudreau/netty-http-client)
+for downloads, and [acteur](https://github.com/timboudreau/acteur) for the server piece.
+On a request for a non-cached file, it simultaneously attempts downloads from all the
+servers it knows about, and when one succeeds, cancels the others.
+
+Command-line and configuration file management is done [with giulius](https://github.com/timboudreau/giulius).
+
