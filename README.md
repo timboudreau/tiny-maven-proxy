@@ -97,7 +97,7 @@ Footprint
 ---------
 
 While the default Java 64Mb heap is preferred, especially if the server will be heavily used, just to prove
-you can run this with a minimal memory footprint, you *can* run it and use it with a 10Mb heap - the following
+you can run this with a minimal memory footprint, you *can* run it and use it with a 12Mb heap - the following
 command-line sets up a JDK 8 vm appropriately:
 
 ```
