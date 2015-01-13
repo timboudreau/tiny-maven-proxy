@@ -20,8 +20,10 @@ By default it runs on port 5956.  It has a minimal web-ui.
 You give it a list of repository URLs to proxy, and a folder to cache files
 in, and run it.  Then configure you `~/.m2/settings.xml` to use it.  That's all.
 
-
 Download [a recent build here](http://timboudreau.com/builds/job/tiny-maven-proxy/)
+
+![Screenshot](http://timboudreau.com/files/screen/d17d10e6-9e65-4314-9c68-cecb4a57023a.png)
+
 
 Configuration
 -------------
