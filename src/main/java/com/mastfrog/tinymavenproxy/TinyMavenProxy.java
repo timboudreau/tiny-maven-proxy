@@ -40,10 +40,9 @@ import com.mastfrog.acteur.server.ServerBuilder;
 import com.mastfrog.acteur.server.ServerModule;
 import static com.mastfrog.acteur.server.ServerModule.BYTEBUF_ALLOCATOR_SETTINGS_KEY;
 import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
-import static com.mastfrog.acteur.server.ServerModule.POOLED_ALLOCATOR;
+import static com.mastfrog.acteur.server.ServerModule.DIRECT_ALLOCATOR;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
 import com.mastfrog.acteur.util.ServerControl;
-import com.mastfrog.bunyan.LoggingModule;
 import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_ASYNC_LOGGING;
 import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_LOG_LEVEL;
 import com.mastfrog.netty.http.client.HttpClient;
@@ -74,7 +73,7 @@ public class TinyMavenProxy extends AbstractModule {
                 .add(SETTINGS_KEY_LOG_LEVEL, "info")
                 .add(PORT, "5956")
                 .add(ServerModule.BACKGROUND_THREADS, "40")
-                .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, POOLED_ALLOCATOR)
+                .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, DIRECT_ALLOCATOR)
                 .addDefaultLocations()
                 .parseCommandLineArguments(args).build();
         ServerControl ctrl = new ServerBuilder(APPLICATION_NAME)
@@ -113,7 +112,7 @@ public class TinyMavenProxy extends AbstractModule {
             client = HttpClient.builder()
                     .setUserAgent("TinyMavenProxy 1.0")
                     .followRedirects()
-                    .setChannelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                    .setChannelOption(ChannelOption.ALLOCATOR, alloc)
                     .threadCount(downloadThreads)
                     .maxChunkSize(16384).build();
         }

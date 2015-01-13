@@ -29,27 +29,38 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.headers.Headers;
+import com.mastfrog.acteur.spi.ApplicationControl;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.bunyan.Log;
 import com.mastfrog.bunyan.Logger;
 import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.netty.http.client.ResponseFuture;
-import com.mastfrog.netty.http.client.ResponseHandler;
 import com.mastfrog.netty.http.client.State;
+import com.mastfrog.netty.http.client.StateType;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
 import com.mastfrog.url.Path;
 import com.mastfrog.url.URL;
+import com.mastfrog.util.GUIDFactory;
 import com.mastfrog.util.thread.Receiver;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import io.netty.handler.codec.http.LastHttpContent;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joda.time.DateTime;
@@ -67,18 +78,22 @@ public class Downloader {
     private final FileFinder finder;
     private final Cache<Path, Path> failedURLs = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
     private final Logger logger;
+    private final ApplicationControl control;
 
     @Inject
-    public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger) {
+    public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger, ApplicationControl control) {
         this.client = client;
         this.config = config;
         this.finder = finder;
         this.logger = logger;
+        this.control = control;
     }
 
     interface DownloadReceiver {
 
         void receive(HttpResponseStatus status, ByteBuf buf, HttpHeaders headers);
+
+        void receive(HttpResponseStatus status, File file, HttpHeaders headers);
 
         void failed(HttpResponseStatus status);
     }
@@ -94,6 +109,33 @@ public class Downloader {
         final AtomicInteger remaining = new AtomicInteger(size);
         final AtomicBoolean success = new AtomicBoolean();
         class RecvImpl implements Recv {
+
+            @Override
+            public void onSuccess(URL u, File file, HttpResponseStatus status, HttpHeaders headers) {
+                if (success.compareAndSet(false, true)) {
+                    try (Log<?> log = logger.info("download")) {
+                        remaining.set(0);
+                        for (Map.Entry<URL, ResponseFuture> e : futures.entrySet()) {
+                            if (!u.equals(e.getKey())) {
+                                e.getValue().cancel();
+                            }
+                        }
+                        futures.clear();
+                        String lastModified = headers.get(Headers.LAST_MODIFIED.name());
+                        DateTime lm = null;
+                        if (lastModified != null) {
+                            lm = Headers.LAST_MODIFIED.toValue(lastModified);
+                        }
+                        File target = finder.put(path, file, lm);
+                        log.add("from", u).add("size", file.length()).add("status", status.code())
+                                .addIfNotNull("server", headers.get("Server"))
+                                .add("id", id);
+                        receiver.receive(status, target, headers);
+                    } catch (IOException ex) {
+                        control.internalOnError(ex);
+                    }
+                }
+            }
 
             @Override
             public void onSuccess(URL u, ByteBuf buf, HttpResponseStatus status, HttpHeaders headers) {
@@ -144,10 +186,15 @@ public class Downloader {
         }
         for (final URL u : urls) {
             final RecvImpl impl = new RecvImpl();
+            Receiver<State<?>> im = new RespHandler(u, impl);
             ResponseFuture f = client.get()
                     .setURL(u)
                     .setTimeout(Duration.standardMinutes(2))
-                    .execute(new ResponseHandlerImpl(ByteBuf.class, u, impl));
+                    .onEvent(im)
+                    //                    .execute(new ResponseHandlerImpl(ByteBuf.class, u, impl));
+                    .dontAggregateResponse()
+                    .execute();
+
             f.onAnyEvent(new Receiver<State<?>>() {
 
                 @Override
@@ -184,42 +231,149 @@ public class Downloader {
 
         void onSuccess(URL u, ByteBuf buf, HttpResponseStatus status, HttpHeaders headers);
 
+        void onSuccess(URL u, File file, HttpResponseStatus status, HttpHeaders headers);
+
         void onFail(URL u, HttpResponseStatus status);
     }
 
-    private static class ResponseHandlerImpl extends ResponseHandler<ByteBuf> {
+    private class RespHandler extends Receiver<State<?>> {
 
+        private File tempfile;
+        private FileChannel out;
+        private FileOutputStream fos;
         private final URL u;
         private final Recv recv;
+        private HttpHeaders headers;
 
-        public ResponseHandlerImpl(Class<ByteBuf> type, URL u, Recv recv) {
-            super(type);
+        RespHandler(URL u, Recv recv) {
             this.u = u;
             this.recv = recv;
         }
 
-        @Override
-        protected void receive(HttpResponseStatus status, HttpHeaders headers, ByteBuf obj) {
-            if (status.code() >= 200 && status.code() < 300) {
-                recv.onSuccess(u, obj, status, headers);
-            } else {
-                recv.onFail(u, status);
+        private void createTempfile() throws IOException {
+            File tmp = new File(System.getProperty("java.io.tmpdir"));
+            tempfile = new File(tmp, "maven-dl-" + GUIDFactory.get().newGUID(1, 4) + Long.toString(System.currentTimeMillis()));
+            if (!tempfile.createNewFile()) {
+                throw new IOException("Could not create " + tempfile);
             }
+            fos = new FileOutputStream(tempfile);
+            out = fos.getChannel();
         }
 
+        boolean done;
+
         @Override
-        protected void onError(Throwable err) {
-            if (err instanceof TimeoutException) {
-                recv.onFail(u, HttpResponseStatus.REQUEST_TIMEOUT);
-            } else {
+        public synchronized void receive(State<?> state) {
+            if (done) {
+                return;
+            }
+            Object object = state.get();
+            try {
+                if (object instanceof FullHttpResponse) {
+                    FullHttpResponse full = (FullHttpResponse) object;
+                    if (OK.equals(full.getStatus())) {
+                        ByteBuffer buffer = full.content().nioBuffer();
+                        out.write(buffer);
+                        out.close();
+                        done = true;
+                        recv.onSuccess(u, tempfile, full.getStatus(), headers);
+                    } else {
+                        close();
+                        done = true;
+                        recv.onFail(u, full.getStatus());
+                    }
+                } else if (object instanceof HttpResponse) {
+                    HttpResponse resp = (HttpResponse) object;
+                    if (OK.equals(resp.getStatus()) || HttpResponseStatus.NON_AUTHORITATIVE_INFORMATION.equals(resp.getStatus())) {
+                        createTempfile();
+                        headers = resp.headers();
+                    } else {
+                        switch (resp.getStatus().code()) {
+                            case 300:
+                            case 301:
+                            case 302:
+                            case 303:
+                            case 305:
+                            case 307:
+                                // redirect, do nothing
+                                return;
+                            default:
+                                close();
+                                recv.onFail(u, resp.getStatus());
+                                done = true;
+                        }
+                    }
+                } else if (tempfile != null && object instanceof HttpContent) {
+                    HttpContent content = (HttpContent) object;
+                    if (content.content().readableBytes() > 0) {
+                        ByteBuffer buffer = content.content().nioBuffer();
+                        out.write(buffer);
+                        content.content().discardReadBytes();
+                    }
+                    if (content instanceof LastHttpContent) {
+                        File file = close();
+                        try {
+                            recv.onSuccess(u, file, OK, headers);
+                            done = true;
+                        } finally {
+                            cleanup();
+                        }
+                    }
+                } else if (state.stateType() == StateType.Closed) {
+                    recv.onFail(u, HttpResponseStatus.FORBIDDEN);
+                    done = true;
+                }
+            } catch (Exception ex) {
+                control.internalOnError(ex);
                 recv.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
             }
-            err.printStackTrace();
+        }
+
+        synchronized void cleanup() throws IOException {
+            if (tempfile != null) {
+                out.close();
+                fos.close();
+                out = null;
+                if (tempfile.exists()) {
+                    if (!tempfile.delete()) {
+                        throw new IOException("Could not delete " + tempfile);
+                    }
+                }
+            }
+        }
+
+        synchronized File close() throws IOException {
+            File old = tempfile;
+            if (old != null) {
+                try {
+                    out.close();
+                    fos.close();
+                } finally {
+                    fos = null;
+                    tempfile = null;
+                    out = null;
+                }
+            }
+            return old;
         }
 
         @Override
-        protected void onErrorResponse(HttpResponseStatus status, String content) {
-            recv.onFail(u, status);
+        public synchronized void onFail() {
+            try {
+                close();
+            } catch (IOException ex) {
+                control.internalOnError(ex);
+            }
+        }
+
+        @Override
+        public synchronized <E extends Throwable> void onFail(E exception) throws E {
+            try {
+                close();
+            } catch (IOException ex) {
+                control.internalOnError(ex);
+            }
+            control.internalOnError(exception);
         }
     }
 }

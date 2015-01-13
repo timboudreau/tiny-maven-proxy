@@ -26,17 +26,28 @@ package com.mastfrog.tinymavenproxy;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import java.io.File;
 
 /**
  *
  * @author Tim Boudreau
  */
 class DownloadResult {
+
     final HttpResponseStatus status;
-    volatile ByteBuf buf;
-    volatile HttpHeaders headers;
+    ByteBuf buf;
+    HttpHeaders headers;
+    File file;
+
+    DownloadResult(HttpResponseStatus status, File file, HttpHeaders headers) {
+        this.file = file;
+        this.status = status;
+        this.headers = headers;
+    }
 
     DownloadResult(HttpResponseStatus status, ByteBuf buf, HttpHeaders headers) {
+        // This method is currently unused, but if we enhance the server to accept
+        // uploads, we will likely need code a lot like this
         this.status = status;
         this.buf = buf;
         this.headers = headers;
@@ -45,9 +56,13 @@ class DownloadResult {
     DownloadResult(HttpResponseStatus status) {
         this.status = status;
     }
+    
+    boolean isFile() {
+        return this.file != null;
+    }
 
     boolean isFail() {
-        return status.code() > 399 || buf == null;
+        return status.code() > 399 || (buf == null && file == null);
     }
 
 }

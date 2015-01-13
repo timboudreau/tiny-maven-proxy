@@ -46,6 +46,7 @@ import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
 import com.mastfrog.bunyan.Log;
 import com.mastfrog.bunyan.Logger;
+import com.mastfrog.settings.Settings;
 import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
@@ -126,7 +127,8 @@ public class GetActeur extends Acteur {
     static class ConcludeHttpRequest extends Acteur {
 
         @Inject
-        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id) {
+        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Closables clos, Settings settings) throws FileNotFoundException {
+            int bufferSize = settings.getInt("download.chunk.size", 1480);
             setChunked(true);
             if (!res.isFail()) {
                 try (Log<?> log = accessLog.info("fetch")) {
@@ -136,7 +138,11 @@ public class GetActeur extends Acteur {
                         add(LAST_MODIFIED, LAST_MODIFIED.toValue(res.headers.get(LAST_MODIFIED.name())));
                     }
                     if (evt.getMethod() != HEAD) {
-                        setResponseWriter(new Responder(res.buf));
+                        if (res.isFile()) {
+                            setResponseBodyWriter(new FileWriter(res.file, clos, bufferSize));
+                        } else {
+                            setResponseWriter(new Responder(res.buf));
+                        }
                     }
                     log.add("path", evt.getPath()).add("id", id).add("cached", false);
                 }
@@ -177,6 +183,11 @@ public class GetActeur extends Acteur {
         @Override
         public void failed(final HttpResponseStatus status) {
             r.resume(new DownloadResult(status));
+        }
+
+        @Override
+        public void receive(HttpResponseStatus status, File file, HttpHeaders headers) {
+            r.resume(new DownloadResult(status, file, headers));
         }
     }
 }

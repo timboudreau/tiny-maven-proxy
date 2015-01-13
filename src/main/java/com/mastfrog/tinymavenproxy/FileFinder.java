@@ -23,6 +23,7 @@
  */
 package com.mastfrog.tinymavenproxy;
 
+import com.google.common.io.Files;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.server.ServerModule;
@@ -62,7 +63,26 @@ public class FileFinder {
         return null;
     }
 
+    public synchronized File put(final Path path, final File file, final DateTime lastModified) throws IOException {
+        if (file.length() == 0) {
+            return file;
+        }
+        final File target = new File(config.dir, path.toString().replace('/', File.separatorChar));
+        if (!target.getParentFile().exists() && !target.getParentFile().mkdirs()) {
+            throw new IOException("Could not create dirs " + target.getParent());
+        }
+        if (!file.renameTo(target)) {
+            throw new IOException("Could not rename " + file + " to " + target);
+        }
+        if (lastModified != null) {
+            target.setLastModified(lastModified.getMillis());
+        }
+        return target;
+    }
+
     public synchronized void put(final Path path, final ByteBuf content, final DateTime lastModified) {
+        // This method is currently unused, but if we enhance the server to accept
+        // uploads, we will likely need code a lot like this
         if (content.readableBytes() == 0) {
             return;
         }
@@ -70,7 +90,7 @@ public class FileFinder {
         threadPool.submit(new Callable<Void>() {
             @Override
             public Void call() throws Exception {
-                final File target = new File(config.dir, path.toString());
+                final File target = new File(config.dir, path.toString().replace('/', File.separatorChar));
                 buf.retain();
                 if (!target.exists()) {
                     if (!target.getParentFile().exists()) {
