@@ -23,20 +23,74 @@
                 margin-bottom: 2em;
                 margin-top: 0px;
                 padding-top: 2em;
-                padding-bottom: 2em;
-                padding-left: 12em;
+                padding-left: 2em;
             }
             .fld {
                 cursor: pointer;
                 font-size: 1.25em;
                 margin-bottom: 1.5em;
             }
+            .logo {
+                display: inline-block;
+                max-width: 150px;
+                max-height: 150px;
+            }
+            .head {
+                display: inline-block;
+            }
+            .legal {
+                color: #AAAAAA;
+                font-size: 0.9em;
+            }
+            .legal a {
+                color: #AAAAFF;
+            }
         </style>
     </head>
     <body ng-app='proxy'>
-        <div class='top'>
-            <h1>Tiny Maven Proxy 1.2</h1>
-            <a target="gh" href="https://github.com/timboudreau/tiny-maven-proxy">Fork me on Github</a>
+        <div class='top row'>
+            <div class="logo col-md-2">
+                <svg>
+                <g
+                    transform="scale(0.45)">
+                <path
+                    style="fill:#bbb4ff;fill-opacity:1;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                    d="M 3.5714282,160.21932 C 139.28571,158.79075 92.142854,74.505041 139.28571,158.79075 c 47.14286,84.28572 80,41.42857 80,41.42857 0,0 -50,104.28572 -119.999996,91.42858 -70,-12.85715 -95.7142858,-131.42858 -95.7142858,-131.42858 z"
+                    id="path4308"
+                    />
+                <path
+                    style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                    d="M 79.285714,245.93361 C 175,290.21932 187.14285,224.50503 115.71428,201.64789 -2.7953868,127.13132 37.228922,219.22236 79.285714,245.93361 z"
+                    id="path4310"/>
+                <path
+                    style="fill:#ffffff;fill-opacity:1;stroke:#a3a3a3;stroke-width:40;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+                    id="path4312"
+                    d="m 150,81.647896 c 0,11.045695 -15.51014,20.000004 -34.64286,20.000004 -19.132722,0 -34.642857,-8.954309 -34.642857,-20.000004 0,-11.045695 15.510135,-20 34.642857,-20 19.13272,0 34.64286,8.954305 34.64286,20 z"
+                    transform="matrix(0.96065978,0.27772789,-0.27772789,0.96065978,-13.500213,-62.397278)" />
+                <path
+                    style="fill:#ffffff;fill-opacity:1;stroke:#a3a3a3;stroke-width:40;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+                    id="path4312-8"
+                    d="m 150,81.647896 c 0,11.045695 -15.51014,20.000004 -34.64286,20.000004 -19.132722,0 -34.642857,-8.954309 -34.642857,-20.000004 0,-11.045695 15.510135,-20 34.642857,-20 19.13272,0 34.64286,8.954305 34.64286,20 z"
+                    transform="matrix(0.96065978,0.27772789,-0.27772789,0.96065978,128.99979,-10.254421)"/>
+                <rect
+                    style="fill:#ffffff;fill-opacity:1;stroke:#a3a3a3;stroke-width:40;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+                    id="rect4332"
+                    width="253.57143"
+                    height="0.71428573"
+                    x="36.988693"
+                    y="14.539215"
+                    transform="matrix(0.92975584,0.3681767,-0.3681767,0.92975584,0,0)" />
+                </g>
+                </svg>                
+            </div>
+            <div class="head col-md-8">
+                <h1>Tiny Maven Proxy 1.2</h1>
+                <a target="gh" href="https://github.com/timboudreau/tiny-maven-proxy">Fork me on Github</a>
+                <br>
+                <span class="legal">
+                    &copy;Copyright 2014, <a href="http://timboudreau.com">Tim Boudreau</a>, distributed under the MIT license.
+                </span>
+            </div>
         </div>
         <div class='container' ng-controller="ProxyController">
             <div class='row' ng-show="!folders">
@@ -67,9 +121,6 @@
                                 $scope.load = function () {
                                     var u = $scope.path + '?browse=true';
                                     $http.get(u).success(function (flds) {
-                                        flds.sort(function(a, b){
-                                            return a.name < b.name ? -1 : 1;
-                                        });
                                         $scope.folders = flds;
                                     }).error(function (err) {
                                         $scope.error = err;
