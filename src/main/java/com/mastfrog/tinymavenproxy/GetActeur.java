@@ -50,6 +50,8 @@ import com.mastfrog.settings.Settings;
 import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
+import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DEFAULT_DOWNLOAD_CHUNK_SIZE;
+import static com.mastfrog.tinymavenproxy.TinyMavenProxy.SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE;
 import com.mastfrog.url.Path;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFutureListener;
@@ -128,7 +130,7 @@ public class GetActeur extends Acteur {
 
         @Inject
         ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Closables clos, Settings settings) throws FileNotFoundException {
-            int bufferSize = settings.getInt("download.chunk.size", 1480);
+            int bufferSize = settings.getInt(SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE, DEFAULT_DOWNLOAD_CHUNK_SIZE);
             setChunked(true);
             if (!res.isFail()) {
                 try (Log<?> log = accessLog.info("fetch")) {

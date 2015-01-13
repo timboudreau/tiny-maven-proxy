@@ -97,15 +97,15 @@ Footprint
 ---------
 
 While the default Java 64Mb heap is preferred, especially if the server will be heavily used, just to prove
-you can run this with a minimal memory footprint, you *can* run it and use it with a 12Mb heap - the following
+you can run this with a minimal memory footprint, you *can* run it and use it with a 10Mb heap - the following
 command-line sets up a JDK 8 vm appropriately:
 
 ```
-java -XX:-UseConcMarkSweepGC -Xmx12M -jar tiny-maven-proxy.jar --download.chunk.size 256
+java -XX:-UseConcMarkSweepGC -Xmx10M -DproductionMode=true -jar tiny-maven-proxy.jar 
+	--log.level=fatal --acteur.fork.join false --download.chunk.size 256
 ```
 
 A bunch of care is taken to ensure as few memory copies as possible are performed, and that downloads are
 read and written chunk by chunk, so the whole file is never dragged into memory at once.
 
 Hopefully this demonstrates what you can do with non-blocking I/O and a bit of care :-)
-
