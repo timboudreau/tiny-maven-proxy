@@ -102,8 +102,8 @@ you can run this with a minimal memory footprint, you *can* run it and use it wi
 command-line sets up a JDK 8 vm appropriately:
 
 ```
-java -XX:-UseConcMarkSweepGC -Xmx10M -DproductionMode=true -jar tiny-maven-proxy.jar 
-	--log.level=fatal --acteur.fork.join false --download.chunk.size 256
+java -XX:-UseConcMarkSweepGC -Xmx10M -jar tiny-maven-proxy.jar --log.level=fatal 
+	--acteur.fork.join false --download.chunk.size 256
 ```
 
 A bunch of care is taken to ensure as few memory copies as possible are performed, and that downloads are
