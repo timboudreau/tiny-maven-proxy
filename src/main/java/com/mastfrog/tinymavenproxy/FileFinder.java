@@ -63,6 +63,17 @@ public class FileFinder {
         return null;
     }
 
+    public File folder(Path path) {
+        if (path.size() == 0) {
+            return config.dir;
+        }
+        File f = new File(config.dir, path.toString());
+        if (f.exists() && f.isDirectory()) {
+            return f;
+        }
+        return null;
+    }
+
     public synchronized File put(final Path path, final File file, final DateTime lastModified) throws IOException {
         if (file.length() == 0) {
             return file;

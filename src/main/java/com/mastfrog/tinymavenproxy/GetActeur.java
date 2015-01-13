@@ -41,6 +41,7 @@ import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
+import com.mastfrog.acteur.preconditions.PathRegex;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
@@ -65,7 +66,7 @@ import org.joda.time.DateTime;
  *
  * @author Tim Boudreau
  */
-@HttpCall(order = Integer.MAX_VALUE)
+@HttpCall(order = Integer.MAX_VALUE - 1)
 @Concluders(ConcludeHttpRequest.class)
 @Methods({GET, HEAD})
 @Description("Download maven artifacts, fetching them from remote repositories "
@@ -74,7 +75,15 @@ public class GetActeur extends Acteur {
 
     @Inject
     GetActeur(HttpEvent req, Deferral def, Config config, FileFinder finder, Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id) throws FileNotFoundException {
+        if ("true".equals(req.getParameter("browse")) || "true".equals(req.getParameter("index"))) {
+            reject();
+            return;
+        }
         Path path = req.getPath();
+        if (path.size() == 0) {
+            reject();
+            return;
+        }
         if (path.toString().contains("..")) {
             setState(new RespondWith(Err.badRequest("Relative paths not allowed")));
             return;
@@ -115,6 +124,8 @@ public class GetActeur extends Acteur {
         }
         String ext = file.substring(ix + 1);
         switch (ext) {
+            case "html":
+                return MediaType.HTML_UTF_8;
             case "jar":
                 return MediaType.parse("application/java-archive");
             case "xml":

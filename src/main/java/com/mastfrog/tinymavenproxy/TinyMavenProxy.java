@@ -97,7 +97,7 @@ public class TinyMavenProxy extends AbstractModule {
     }
 
     @HttpCall(order = Integer.MIN_VALUE)
-    @PathRegex("^favicon.ico$")
+    @PathRegex({"^favicon.ico$", "^.index.*"})
     @Methods({GET, HEAD})
     @Description("Sends 404 for /favicon.ico")
     static class FaviconPage extends Acteur {

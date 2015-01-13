@@ -1,0 +1,97 @@
+<!doctype html><html><head><title>Maven Repository</title>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <link href='http://netdna.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css' rel='stylesheet'/>
+        <link href='http://fonts.googleapis.com/css?family=Open+Sans:400italic,600italic,400,600' rel='stylesheet'>
+        <link href='http://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700' rel='stylesheet' type='text/css'>
+        <link href='http://fonts.googleapis.com/css?family=Lato:300,400,700,400italic' rel='stylesheet' type='text/css'>
+        <link href='http://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css' rel='stylesheet'>
+        <style>
+            @import url(//fonts.googleapis.com/css?family=Source+Code+Pro|Sanchez|Montserrat);
+            body {
+                font-family: 'Sanchez';
+            }
+            h1, h2, h3, h4  {
+                font-family: 'Montserrat';
+            }
+            .container {
+                margin-left: 5em;
+                margin-right: 5em;
+            }
+            .top {
+                background-color: #E6E6FF;
+                border-bottom: solid 1px #AAAAAA;
+                margin-bottom: 2em;
+                margin-top: 0px;
+                padding-top: 2em;
+                padding-bottom: 2em;
+                padding-left: 12em;
+            }
+            .fld {
+                cursor: pointer;
+                font-size: 1.25em;
+                margin-bottom: 1.5em;
+            }
+        </style>
+    </head>
+    <body ng-app='proxy'>
+        <div class='top'>
+            <h1>Tiny Maven Proxy 1.2</h1>
+            <a target="gh" href="https://github.com/timboudreau/tiny-maven-proxy">Fork me on Github</a>
+        </div>
+        <div class='container' ng-controller="ProxyController">
+            <div class='row' ng-show="!folders">
+                Loading...
+            </div>
+            <div class='row' ng-show="folders">
+                <span class="col-md-4 col-xs-12" ng-repeat="folder in folders">
+                    <span class="fld" ng-click="browse(folder)">
+                        <i ng-show="folder.file" class="glyphicon glyphicon-download-alt"></i>
+                        <i ng-show="!folder.file" class="glyphicon glyphicon-folder-close"></i>
+                        {{folder.name}}
+                    </span>
+                </span>
+            </div>
+        </div>
+        <script src='http://code.jquery.com/jquery-2.1.1.min.js'></script>
+        <script src='http://netdna.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js'></script>
+        <script src='http://ajax.googleapis.com/ajax/libs/angularjs/1.3.6/angular.min.js'></script>
+        <script src='http://ajax.googleapis.com/ajax/libs/angularjs/1.3.6/angular-route.min.js'></script>
+        <script type='text/javascript'>
+                            var app = angular.module('proxy', []).config(['$controllerProvider', function ($controllerProvider) {
+                                    $controllerProvider.allowGlobals();
+                                }]);
+                            console.log('Load page');
+                            function ProxyController($scope, $http, $location, $rootScope) {
+                                $scope.path = $location.path() || '/';
+                                $scope.error = 'Loading...';
+                                $scope.load = function () {
+                                    var u = $scope.path + '?browse=true';
+                                    $http.get(u).success(function (flds) {
+                                        flds.sort(function(a, b){
+                                            return a.name < b.name ? -1 : 1;
+                                        });
+                                        $scope.folders = flds;
+                                    }).error(function (err) {
+                                        $scope.error = err;
+                                    });
+                                }
+                                $scope.load();
+
+                                $scope.$on('$locationChangeSuccess', function (event, newUrl, oldUrl) {
+                                    var pth = newUrl.split('#')[1];
+                                    $scope.path = pth || '/';
+                                    $scope.load();
+                                });
+
+                                $scope.browse = function (fld) {
+                                    if (fld.file) {
+                                        window.location = $scope.path + '/' + fld.name;
+                                    } else {
+                                        $scope.path += fld.name + '/';
+                                        $location.path($scope.path);
+                                    }
+                                }
+                            }
+        </script>
+    </body>
+</html>

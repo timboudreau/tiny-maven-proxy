@@ -15,8 +15,11 @@ and Netty, meaning that it is asynchronous, with a small memory footprint
 and low memory usage (microscopic if you're used to Java EE - `-Xmx16M` is
 reasonable).
 
+By default it runs on port 5956.  It has a minimal web-ui.
+
 You give it a list of repository URLs to proxy, and a folder to cache files
 in, and run it.  Then configure you `~/.m2/settings.xml` to use it.  That's all.
+
 
 Download [a recent build here](http://timboudreau.com/builds/job/tiny-maven-proxy/)
 
