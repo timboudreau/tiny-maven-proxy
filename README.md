@@ -81,6 +81,7 @@ To-Dos
 ------
 
  * Clean out `-SNAPSHOT` dependencies periodically
+ * Nexus-style indexing?  Or perhaps that's getting too fancy.
 
 
 Under The Hood
