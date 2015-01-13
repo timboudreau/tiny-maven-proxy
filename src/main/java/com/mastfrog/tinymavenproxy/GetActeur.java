@@ -23,6 +23,7 @@
  */
 package com.mastfrog.tinymavenproxy;
 
+import com.mastfrog.acteur.io.FileWriter;
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
