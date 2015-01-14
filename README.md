@@ -46,6 +46,13 @@ maven.dir=/var/lib/maven
 urls=urls https://repo1.maven.org/maven2,http://bits.netbeans.org/maven2/
 ```
 
+Other properties that affect Acteur that may be useful:
+
+ * `port` - the port to run on
+ * `cors.enabled` - whether or not to answer CORS preflight requests affirmitively - on by default
+ * `workerThreads` - the number of threads used to answer requests (one thread *can* work on multiple requests at a time with netty, so 4-8 is usually enough)
+ * `log.file` - log to a file
+
 #### Defaults
 
 If `maven.dir` is not set, it will create a `/maven` directory in the system
@@ -103,11 +110,11 @@ Footprint
 ---------
 
 While the default Java 64Mb heap is preferred, especially if the server will be heavily used, just to prove
-you can run this with a minimal memory footprint, you *can* run it and use it with a 10Mb heap - the following
+you can run this with a minimal memory footprint, you *can* run it and use it with an 8Mb heap - the following
 command-line sets up a JDK 8 vm appropriately:
 
 ```
-java -XX:-UseConcMarkSweepGC -Xmx10M -jar tiny-maven-proxy.jar --log.level=fatal 
+java -XX:-UseConcMarkSweepGC -Xmx8M -jar tiny-maven-proxy.jar --log.level=fatal 
 	--acteur.fork.join false --download.chunk.size 256
 ```
 

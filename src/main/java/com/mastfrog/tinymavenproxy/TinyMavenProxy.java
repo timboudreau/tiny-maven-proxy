@@ -41,7 +41,10 @@ import com.mastfrog.acteur.server.ServerModule;
 import static com.mastfrog.acteur.server.ServerModule.BYTEBUF_ALLOCATOR_SETTINGS_KEY;
 import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
 import static com.mastfrog.acteur.server.ServerModule.DIRECT_ALLOCATOR;
+import static com.mastfrog.acteur.server.ServerModule.EVENT_THREADS;
+import static com.mastfrog.acteur.server.ServerModule.MAX_CONTENT_LENGTH;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
+import static com.mastfrog.acteur.server.ServerModule.WORKER_THREADS;
 import com.mastfrog.acteur.util.ServerControl;
 import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_ASYNC_LOGGING;
 import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_LOG_LEVEL;
@@ -74,12 +77,15 @@ public class TinyMavenProxy extends AbstractModule {
                 .add("application.name", APPLICATION_NAME)
                 .add(HTTP_COMPRESSION, "true")
                 .add(SETTINGS_KEY_DOWNLOAD_THREADS, "24")
-                .add(SETTINGS_KEY_ASYNC_LOGGING)
+                .add(SETTINGS_KEY_ASYNC_LOGGING, "true")
+                .add(WORKER_THREADS, "4")
+                .add(EVENT_THREADS, "1")
                 .add(SETTINGS_KEY_LOG_LEVEL, "info")
+                .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
                 .add(PORT, "5956")
                 .add(ServerModule.BACKGROUND_THREADS, "40")
                 .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, DIRECT_ALLOCATOR)
-                .addDefaultLocations()
+                .addFilesystemAndClasspathLocations()
                 .parseCommandLineArguments(args).build();
         ServerControl ctrl = new ServerBuilder(APPLICATION_NAME)
                 .add(new TinyMavenProxy())
