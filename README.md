@@ -93,7 +93,7 @@ To-Dos
 ------
 
  * Clean out `-SNAPSHOT` dependencies periodically
- * Nexus-style indexing?  Or perhaps that's getting too fancy.
+ * Nexus-style indexing - this is started in the project next to it, but the Nexus index format does not seem to be documented
 
 
 Under The Hood
@@ -110,11 +110,11 @@ Footprint
 ---------
 
 While the default Java 64Mb heap is preferred, especially if the server will be heavily used, just to prove
-you can run this with a minimal memory footprint, you *can* run it and use it with an 8Mb heap - the following
+you can run this with a minimal memory footprint, you *can* run it and use it with an 7Mb heap - the following
 command-line sets up a JDK 8 vm appropriately:
 
 ```
-java -XX:-UseConcMarkSweepGC -Xmx8M -jar tiny-maven-proxy.jar --log.level=fatal 
+java -XX:-UseConcMarkSweepGC -Xmx7M -jar tiny-maven-proxy.jar --log.level=fatal 
 	--acteur.fork.join false --download.chunk.size 256
 ```
 
