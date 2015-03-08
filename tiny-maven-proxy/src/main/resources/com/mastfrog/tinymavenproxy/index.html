@@ -84,7 +84,7 @@
                 </svg>                
             </div>
             <div class="head col-md-8">
-                <h1>Tiny Maven Proxy 1.2</h1>
+                <h1>Tiny Maven Proxy 1.3</h1>
                 <a target="gh" href="https://github.com/timboudreau/tiny-maven-proxy">Fork me on Github</a>
                 <br>
                 <span class="legal">
@@ -114,13 +114,15 @@
                             var app = angular.module('proxy', []).config(['$controllerProvider', function ($controllerProvider) {
                                     $controllerProvider.allowGlobals();
                                 }]);
-                            console.log('Load page');
                             function ProxyController($scope, $http, $location, $rootScope) {
                                 $scope.path = $location.path() || '/';
                                 $scope.error = 'Loading...';
                                 $scope.load = function () {
                                     var u = $scope.path + '?browse=true';
                                     $http.get(u).success(function (flds) {
+                                        flds.sort(function(a, b) {
+                                            return a.name > b.name ? 1 : a.name === b.name ? 0 : -1;
+                                        });
                                         $scope.folders = flds;
                                     }).error(function (err) {
                                         $scope.error = err;

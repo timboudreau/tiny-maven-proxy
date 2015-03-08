@@ -1,5 +1,6 @@
 *.class
 nbactions.xml
+nb-configuration.xml
 
 # Package Files #
 *.jar

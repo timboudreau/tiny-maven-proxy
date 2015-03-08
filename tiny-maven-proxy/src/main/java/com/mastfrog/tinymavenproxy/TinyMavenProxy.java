@@ -37,7 +37,6 @@ import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.preconditions.PathRegex;
 import com.mastfrog.acteur.server.ServerBuilder;
-import com.mastfrog.acteur.server.ServerModule;
 import static com.mastfrog.acteur.server.ServerModule.BYTEBUF_ALLOCATOR_SETTINGS_KEY;
 import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
 import static com.mastfrog.acteur.server.ServerModule.DIRECT_ALLOCATOR;
@@ -83,7 +82,6 @@ public class TinyMavenProxy extends AbstractModule {
                 .add(SETTINGS_KEY_LOG_LEVEL, "info")
                 .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
                 .add(PORT, "5956")
-                .add(ServerModule.BACKGROUND_THREADS, "40")
                 .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, DIRECT_ALLOCATOR)
                 .addFilesystemAndClasspathLocations()
                 .parseCommandLineArguments(args).build();
