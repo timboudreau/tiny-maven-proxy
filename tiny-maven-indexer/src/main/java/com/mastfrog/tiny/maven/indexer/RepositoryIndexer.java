@@ -26,13 +26,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
-import org.apache.lucene.util.Version;
 import org.apache.maven.index.*;
 import org.apache.maven.index.context.IndexCreator;
 import org.apache.maven.index.context.IndexingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import static java.util.Arrays.asList;
 import javax.inject.Named;
 

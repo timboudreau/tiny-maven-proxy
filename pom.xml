@@ -8,6 +8,6 @@
     <packaging>pom</packaging>
     <modules>
         <module>tiny-maven-proxy</module>
-        <module>tiny-maven-indexer</module>
+<!--        <module>tiny-maven-indexer</module> -->
     </modules>
 </project>
