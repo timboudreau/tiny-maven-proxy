@@ -44,7 +44,7 @@ import java.util.List;
 public class Config implements Iterable<URL> {
     public static final String SETTINGS_KEY_MIRROR_URLS = "mirror";
     public static final String MAVEN_CACHE_DIR = "maven.dir";
-    private static final String DEFAULT_URLS="https://repo1.maven.org/maven2"
+    private static final String DEFAULT_URLS="https://repo.maven.apache.org/maven2/"
             + ",http://bits.netbeans.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
             + ",https://timboudreau.com/builds/plugin/repository/everything/"
