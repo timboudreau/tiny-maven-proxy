@@ -319,6 +319,12 @@ public class Downloader {
                             cleanup();
                         }
                     }
+                } else if (state.get() instanceof State.Error) {
+                    State.Error err = (State.Error) state.get();
+                    recv.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                    try (Log lg = logger.error(err.get() == null ? "Error" : err.get())) {
+                        lg.add("url", u.toString());
+                    }
                 } else if (state.stateType() == StateType.Closed) {
                     recv.onFail(u, HttpResponseStatus.FORBIDDEN);
                     done = true;
