@@ -205,8 +205,8 @@ public class Downloader {
                             break;
                         case HeadersReceived:
                             State.HeadersReceived hr = (State.HeadersReceived) t;
-                            if (hr.get().getStatus().code() > 399) {
-                                impl.onFail(u, hr.get().getStatus());
+                            if (hr.get().status().code() > 399) {
+                                impl.onFail(u, hr.get().status());
                             }
                     }
                 }
@@ -271,24 +271,24 @@ public class Downloader {
             try {
                 if (object instanceof FullHttpResponse) {
                     FullHttpResponse full = (FullHttpResponse) object;
-                    if (OK.equals(full.getStatus())) {
+                    if (OK.equals(full.status())) {
                         ByteBuffer buffer = full.content().nioBuffer();
                         out.write(buffer);
                         out.close();
                         done = true;
-                        recv.onSuccess(u, tempfile, full.getStatus(), headers);
+                        recv.onSuccess(u, tempfile, full.status(), headers);
                     } else {
                         close();
                         done = true;
-                        recv.onFail(u, full.getStatus());
+                        recv.onFail(u, full.status());
                     }
                 } else if (object instanceof HttpResponse) {
                     HttpResponse resp = (HttpResponse) object;
-                    if (OK.equals(resp.getStatus()) || HttpResponseStatus.NON_AUTHORITATIVE_INFORMATION.equals(resp.getStatus())) {
+                    if (OK.equals(resp.status()) || HttpResponseStatus.NON_AUTHORITATIVE_INFORMATION.equals(resp.status())) {
                         createTempfile();
                         headers = resp.headers();
                     } else {
-                        switch (resp.getStatus().code()) {
+                        switch (resp.status().code()) {
                             case 300:
                             case 301:
                             case 302:
@@ -299,7 +299,7 @@ public class Downloader {
                                 return;
                             default:
                                 close();
-                                recv.onFail(u, resp.getStatus());
+                                recv.onFail(u, resp.status());
                                 done = true;
                         }
                     }
