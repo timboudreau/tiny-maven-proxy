@@ -26,19 +26,22 @@ package com.mastfrog.tinymavenproxy;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.mastfrog.acteur.errors.ResponseException;
 import com.mastfrog.acteur.server.ServerModule;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.Streams;
+import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.ZonedDateTime;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import org.joda.time.DateTime;
 
 /**
  *
@@ -74,7 +77,7 @@ public class FileFinder {
         return null;
     }
 
-    public synchronized File put(final Path path, final File file, final DateTime lastModified) throws IOException {
+    public synchronized File put(final Path path, final File file, final ZonedDateTime lastModified) throws IOException {
         if (file.length() == 0) {
             return file;
         }
@@ -83,15 +86,15 @@ public class FileFinder {
             throw new IOException("Could not create dirs " + target.getParent());
         }
         if (!file.renameTo(target)) {
-            throw new IOException("Could not rename " + file + " to " + target);
+            throw new ResponseException(INTERNAL_SERVER_ERROR, "Could not rename " + file + " to " + target);
         }
         if (lastModified != null) {
-            target.setLastModified(lastModified.getMillis());
+            target.setLastModified(lastModified.toInstant().toEpochMilli());
         }
         return target;
     }
 
-    public synchronized void put(final Path path, final ByteBuf content, final DateTime lastModified) {
+    public synchronized void put(final Path path, final ByteBuf content, final ZonedDateTime lastModified) {
         // This method is currently unused, but if we enhance the server to accept
         // uploads, we will likely need code a lot like this
         if (content.readableBytes() == 0) {
@@ -130,7 +133,7 @@ public class FileFinder {
                     @Override
                     public void run() {
                         if (lastModified != null) {
-                            target.setLastModified(lastModified.getMillis());
+                            target.setLastModified(TimeUtil.toUnixTimestamp(lastModified));
                         }
                     }
                 });

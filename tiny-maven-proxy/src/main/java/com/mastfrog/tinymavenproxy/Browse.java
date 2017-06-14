@@ -36,6 +36,7 @@ import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.Streams;
 import com.mastfrog.util.collections.MapBuilder;
+import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.ChannelFuture;
@@ -46,11 +47,11 @@ import java.io.File;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import org.joda.time.DateTime;
 
 /**
  *
@@ -61,10 +62,10 @@ import org.joda.time.DateTime;
 public class Browse extends Acteur {
 
     @Inject
-    Browse(HttpEvent evt, FileFinder finder, DateTime startTime) throws NoSuchAlgorithmException {
-        Path path = evt.getPath();
-        if (path.size() == 0 && !"true".equals(evt.getParameter("browse"))) {
-            DateTime headerTime = evt.getHeader(Headers.IF_MODIFIED_SINCE);
+    Browse(HttpEvent evt, FileFinder finder, ZonedDateTime startTime) throws NoSuchAlgorithmException {
+        Path path = evt.path();
+        if (path.size() == 0 && !"true".equals(evt.urlParameter("browse"))) {
+            ZonedDateTime headerTime = evt.header(Headers.IF_MODIFIED_SINCE);
             if (headerTime != null && (headerTime.equals(startTime) || headerTime.isAfter(startTime))) {
                 reply(NOT_MODIFIED);
                 return;
@@ -101,14 +102,14 @@ public class Browse extends Acteur {
             newest = Math.max(lm, newest);
             result.add(mb1.build());
         }
-        add(Headers.LAST_MODIFIED, new DateTime(newest));
+        add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(newest));
         String etag = Base64.getEncoder().encodeToString(digest.digest());
         add(Headers.ETAG, etag);
-        if (etag.equals(evt.getHeader(Headers.IF_NONE_MATCH))) {
+        if (etag.equals(evt.header(Headers.IF_NONE_MATCH))) {
             reply(NOT_MODIFIED);
             return;
         }
-        if (evt.getMethod() == HEAD) {
+        if (evt.method() == HEAD) {
             ok();
             return;
         }

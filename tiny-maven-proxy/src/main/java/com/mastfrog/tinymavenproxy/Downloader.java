@@ -50,6 +50,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.handler.codec.http.LastHttpContent;
 import java.io.File;
@@ -57,14 +58,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.joda.time.DateTime;
-import org.joda.time.Duration;
 
 /**
  *
@@ -96,6 +97,8 @@ public class Downloader {
         void receive(HttpResponseStatus status, File file, HttpHeaders headers);
 
         void failed(HttpResponseStatus status);
+
+        void failed(HttpResponseStatus status, String msg);
     }
 
     public boolean isFailedPath(Path path) {
@@ -122,16 +125,23 @@ public class Downloader {
                         }
                         futures.clear();
                         String lastModified = headers.get(Headers.LAST_MODIFIED.name());
-                        DateTime lm = null;
+                        ZonedDateTime lm = null;
                         if (lastModified != null) {
                             lm = Headers.LAST_MODIFIED.toValue(lastModified);
                         }
-                        File target = finder.put(path, file, lm);
-                        log.add("from", u).add("size", file.length()).add("status", status.code())
-                                .addIfNotNull("server", headers.get("Server"))
-                                .add("id", id);
+                        File target = null;
+                        try {
+                            target = finder.put(path, file, lm);
+                            log.add("from", u).add("size", file.length()).add("status", status.code())
+                                    .addIfNotNull("server", headers.get("Server"))
+                                    .add("id", id);
+                        } catch (Exception e) {
+                            receiver.failed(INTERNAL_SERVER_ERROR, e.getMessage() == null
+                                    ? "Proxy failed to download item from any remote server" : e.getMessage());
+                            return;
+                        }
                         receiver.receive(status, target, headers);
-                    } catch (IOException ex) {
+                    } catch (Exception ex) {
                         control.internalOnError(ex);
                     }
                 }
@@ -149,7 +159,7 @@ public class Downloader {
                         }
                         futures.clear();
                         String lastModified = headers.get(Headers.LAST_MODIFIED.name());
-                        DateTime lm = null;
+                        ZonedDateTime lm = null;
                         if (lastModified != null) {
                             lm = Headers.LAST_MODIFIED.toValue(lastModified);
                         }
@@ -189,29 +199,29 @@ public class Downloader {
             Receiver<State<?>> im = new RespHandler(u, impl);
             ResponseFuture f = client.get()
                     .setURL(u)
-                    .setTimeout(Duration.standardMinutes(2))
+                    .setTimeout(Duration.ofMinutes(2))
                     .onEvent(im)
                     //                    .execute(new ResponseHandlerImpl(ByteBuf.class, u, impl));
                     .dontAggregateResponse()
+                    .onEvent(new Receiver<State<?>>() {
+
+                        @Override
+                        public void receive(State<?> t) {
+                            switch (t.stateType()) {
+                                case Closed:
+                                    impl.onFail(u, HttpResponseStatus.FORBIDDEN);
+                                    break;
+                                case HeadersReceived:
+                                    State.HeadersReceived hr = (State.HeadersReceived) t;
+                                    if (hr.get().status().code() > 399) {
+                                        impl.onFail(u, hr.get().status());
+                                    }
+                            }
+                        }
+
+                    })
                     .execute();
 
-            f.onAnyEvent(new Receiver<State<?>>() {
-
-                @Override
-                public void receive(State<?> t) {
-                    switch (t.stateType()) {
-                        case Closed:
-                            impl.onFail(u, HttpResponseStatus.FORBIDDEN);
-                            break;
-                        case HeadersReceived:
-                            State.HeadersReceived hr = (State.HeadersReceived) t;
-                            if (hr.get().status().code() > 399) {
-                                impl.onFail(u, hr.get().status());
-                            }
-                    }
-                }
-
-            });
             futures.put(u, f);
         }
         return new ChannelFutureListener() {

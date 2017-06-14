@@ -120,8 +120,9 @@ public class TinyMavenProxy extends AbstractModule {
         @Inject
         HttpClientProvider(ByteBufAllocator alloc, @Named(SETTINGS_KEY_DOWNLOAD_THREADS) int downloadThreads) {
             client = HttpClient.builder()
-                    .setUserAgent("TinyMavenProxy 1.0")
+                    .setUserAgent("TinyMavenProxy 1.1")
                     .followRedirects()
+                    .useCompression()
                     .setChannelOption(ChannelOption.ALLOCATOR, alloc)
                     .threadCount(downloadThreads)
                     .maxChunkSize(16384).build();

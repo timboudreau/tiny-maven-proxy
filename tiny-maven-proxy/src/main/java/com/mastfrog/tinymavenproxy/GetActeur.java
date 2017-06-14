@@ -54,13 +54,17 @@ import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DEFAULT_DOWNLOAD_CHUNK_SIZE;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE;
 import com.mastfrog.url.Path;
+import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.CharsetUtil;
 import java.io.File;
 import java.io.FileNotFoundException;
-import org.joda.time.DateTime;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -75,11 +79,11 @@ public class GetActeur extends Acteur {
 
     @Inject
     GetActeur(HttpEvent req, Deferral def, Config config, FileFinder finder, Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id) throws FileNotFoundException {
-        if ("true".equals(req.getParameter("browse")) || "true".equals(req.getParameter("index"))) {
+        if ("true".equals(req.urlParameter("browse")) || "true".equals(req.urlParameter("index"))) {
             reject();
             return;
         }
-        Path path = req.getPath();
+        Path path = req.path();
         if (path.size() == 0) {
             reject();
             return;
@@ -92,10 +96,10 @@ public class GetActeur extends Acteur {
         if (file != null) {
             try (Log<?> log = accessLog.info("fetch")) {
                 log.add("path", path).add("id", id).add("cached", true);
-                add(Headers.LAST_MODIFIED, new DateTime(file.lastModified()));
+                add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(file.lastModified()));
                 setState(new RespondWith(HttpResponseStatus.OK));
                 add(Headers.CONTENT_TYPE, findMimeType(path));
-                if (req.getMethod() != HEAD) {
+                if (req.method() != HEAD) {
                     setResponseBodyWriter(new FileWriter(file, clos));
                 }
             }
@@ -108,7 +112,7 @@ public class GetActeur extends Acteur {
             setChunked(true);
             final Resumer r = def.defer();
             ChannelFutureListener l = dl.download(path, id, new DownloadReceiverImpl(r));
-            req.getChannel().closeFuture().addListener(l);
+            req.channel().closeFuture().addListener(l);
             next();
         }
     }
@@ -146,19 +150,22 @@ public class GetActeur extends Acteur {
             if (!res.isFail()) {
                 try (Log<?> log = accessLog.info("fetch")) {
                     ok();
-                    add(Headers.CONTENT_TYPE, findMimeType(evt.getPath()));
+                    add(Headers.CONTENT_TYPE, findMimeType(evt.path()));
                     if (res.headers.contains(LAST_MODIFIED.name())) {
                         add(LAST_MODIFIED, LAST_MODIFIED.toValue(res.headers.get(LAST_MODIFIED.name())));
                     }
-                    if (evt.getMethod() != HEAD) {
+                    if (evt.method() != HEAD) {
                         if (res.isFile()) {
                             setResponseBodyWriter(new FileWriter(res.file, clos, bufferSize));
                         } else {
                             setResponseWriter(new Responder(res.buf));
                         }
                     }
-                    log.add("path", evt.getPath()).add("id", id).add("cached", false);
+                    log.add("path", evt.path()).add("id", id).add("cached", false);
                 }
+            } else if (res.isFail() && res.buf != null) {
+                reply(res.status);
+                setResponseWriter(new Responder(res.buf));
             } else {
                 notFound();
             }
@@ -185,7 +192,7 @@ public class GetActeur extends Acteur {
         private final Resumer r;
 
         public DownloadReceiverImpl(Resumer r) {
-            this.r = r;
+            this.r = new WrapperResumer(r);
         }
 
         @Override
@@ -202,5 +209,34 @@ public class GetActeur extends Acteur {
         public void receive(HttpResponseStatus status, File file, HttpHeaders headers) {
             r.resume(new DownloadResult(status, file, headers));
         }
+
+        @Override
+        public void failed(HttpResponseStatus status, String msg) {
+            ByteBuf buf = Unpooled.buffer(msg.length() + 4);
+            buf.writeCharSequence(msg, CharsetUtil.UTF_8);
+            buf.writeChar('\n');
+            r.resume(new DownloadResult(status, buf));
+        }
+    }
+    
+    private static class WrapperResumer implements Resumer {
+        private AtomicBoolean resumed = new AtomicBoolean();
+        private final Resumer resumer;
+        private Exception ex;
+
+        public WrapperResumer(Resumer resumer) {
+            this.resumer = resumer;
+        }
+
+        @Override
+        public void resume(Object... os) {
+            if (resumed.compareAndSet(false, true)) {
+                ex = new Exception();
+                resumer.resume(os);
+            } else {
+                throw new IllegalStateException("Already resumed", ex);
+            }
+        }
+        
     }
 }
