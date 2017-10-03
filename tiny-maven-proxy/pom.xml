@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
-        <version>1.4</version>
+        <version>1.5</version>
         <artifactId>tiny-maven-proxy-parent</artifactId>
     </parent>
     <artifactId>tiny-maven-proxy</artifactId>
@@ -119,6 +119,40 @@
                 <configuration>
                     <mainClass>com.mastfrog.tinymavenproxy.TinyMavenProxy</mainClass>
                     <jarName>tiny-maven-proxy</jarName>
+                    <skipMavenMetadata>true</skipMavenMetadata>
+                    <normalizeMetaInfPropertiesFiles>true</normalizeMetaInfPropertiesFiles>
+                    <skipLicenseFiles>true</skipLicenseFiles>
+                    <exclude>
+                        com.mastfrog.tiny.http.server
+                        com.mastfrog.util.search
+                        <!--
+                        io.netty.channel.oio
+                        io.netty.codec.http.multipart
+                        io.netty.codec.http.websocketx
+                        io.netty.codec.http.websocketx.extensions
+                        io.netty.codec.http.websocketx.extensions.compression
+                        io.netty.handler.codec.protobuf
+                        io.netty.handler.codec.rtsp
+                        io.netty.handler.codec.spdy
+                        io.netty.handler.codec.xml
+                        org.openide.util.spi
+                        org.openide.xml
+                        
+                        com.google.common.html
+                                                -->
+                        com.google.common.eventbus
+                        com.google.common.graph
+                        com.google.common.annotations
+                        com.google.common.escape
+                        com.google.common.io
+                        com.mastfrog.giulius.annotations.processors
+                        com.mastfrog.parameters.processor
+                        com.mastfrog.util.perf
+                        com.mastfrog.util.search
+                        org.openide.xml
+                        META-INF.maven
+                        .netbeans_automatic_build
+                    </exclude>
                 </configuration>
             </plugin>
             <plugin>

@@ -31,6 +31,7 @@ import com.google.inject.name.Named;
 import com.mastfrog.acteur.Acteur;
 import com.mastfrog.acteur.annotations.HttpCall;
 import com.mastfrog.acteur.bunyan.ActeurBunyanModule;
+import com.mastfrog.acteur.headers.Headers;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
@@ -53,8 +54,11 @@ import static com.mastfrog.giulius.SettingsBindings.STRING;
 import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
+import com.mastfrog.url.URL;
+import com.mastfrog.util.strings.AlignedText;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelOption;
+import static io.netty.handler.codec.http.HttpResponseStatus.GONE;
 import java.io.IOException;
 
 /**
@@ -76,9 +80,9 @@ public class TinyMavenProxy extends AbstractModule {
                 .add("application.name", APPLICATION_NAME)
                 .add(HTTP_COMPRESSION, "true")
                 .add(SETTINGS_KEY_DOWNLOAD_THREADS, "24")
-                .add(SETTINGS_KEY_ASYNC_LOGGING, "true")
-                .add(WORKER_THREADS, "4")
-                .add(EVENT_THREADS, "1")
+                .add(SETTINGS_KEY_ASYNC_LOGGING, "false")
+                .add(WORKER_THREADS, "6")
+                .add(EVENT_THREADS, "2")
                 .add(SETTINGS_KEY_LOG_LEVEL, "info")
                 .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
                 .add(PORT, "5956")
@@ -92,12 +96,30 @@ public class TinyMavenProxy extends AbstractModule {
                 .add(settings)
                 .withType(DownloadResult.class)
                 .build().start();
+
         ctrl.await();
     }
 
     @Override
     protected void configure() {
         bind(HttpClient.class).toProvider(HttpClientProvider.class);
+        bind(StartupLogger.class).asEagerSingleton();
+    }
+
+    static final class StartupLogger {
+
+        @Inject
+        StartupLogger(Settings settings, Config config) {
+            StringBuilder sb = new StringBuilder("TinyMavenProxy 1.5 on port\t" + settings.getInt("port") + " serving:\n");
+            for (URL u : config) {
+                sb.append("Repo:\t").append(u).append('\n');
+            }
+            sb.append("Settings:\n");
+            for (String key : new String[] {SETTINGS_KEY_DOWNLOAD_THREADS, WORKER_THREADS, EVENT_THREADS}) {
+                sb.append(key).append("\t").append(settings.getString(key)).append('\n');
+            }
+            System.out.println(AlignedText.formatTabbed(sb));
+        }
     }
 
     @HttpCall(order = Integer.MIN_VALUE)
@@ -108,7 +130,9 @@ public class TinyMavenProxy extends AbstractModule {
 
         @Inject
         FaviconPage() {
-            notFound();
+            add(Headers.CONTENT_LENGTH, 0);
+//            add(Headers.stringHeader("X-Internal-Compress"), "true");
+            reply(GONE);
         }
     }
 
