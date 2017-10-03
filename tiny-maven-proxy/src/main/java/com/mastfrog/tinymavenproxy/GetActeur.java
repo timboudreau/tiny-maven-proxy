@@ -23,7 +23,6 @@
  */
 package com.mastfrog.tinymavenproxy;
 
-import com.mastfrog.acteur.io.FileWriter;
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -41,7 +40,6 @@ import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
-import com.mastfrog.acteur.preconditions.PathRegex;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
@@ -57,8 +55,10 @@ import com.mastfrog.url.Path;
 import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.channel.DefaultFileRegion;
+import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
@@ -100,7 +100,8 @@ public class GetActeur extends Acteur {
                 setState(new RespondWith(HttpResponseStatus.OK));
                 add(Headers.CONTENT_TYPE, findMimeType(path));
                 if (req.method() != HEAD) {
-                    setResponseBodyWriter(new FileWriter(file, clos));
+                    add(Headers.CONTENT_LENGTH, file.length());
+                    setResponseBodyWriter(new FileWriter(file));
                 }
             }
         } else {
@@ -156,7 +157,8 @@ public class GetActeur extends Acteur {
                     }
                     if (evt.method() != HEAD) {
                         if (res.isFile()) {
-                            setResponseBodyWriter(new FileWriter(res.file, clos, bufferSize));
+                            add(Headers.CONTENT_LENGTH, res.file.length());
+                            setResponseBodyWriter(new FileWriter(res.file));
                         } else {
                             setResponseWriter(new Responder(res.buf));
                         }
@@ -170,6 +172,26 @@ public class GetActeur extends Acteur {
                 notFound();
             }
         }
+    }
+
+    static final class FileWriter implements ChannelFutureListener {
+
+        private final File file;
+
+        FileWriter(File file) {
+            this.file = file;
+        }
+
+        @Override
+        public void operationComplete(ChannelFuture f) throws Exception {
+            if (f.isSuccess()) {
+                FileRegion region = new DefaultFileRegion(file, 0, file.length());
+                f.channel().writeAndFlush(region);
+            } else if (f.channel().isOpen()) {
+                f.channel().close();
+            }
+        }
+
     }
 
     static class Responder extends ResponseWriter {
@@ -218,8 +240,9 @@ public class GetActeur extends Acteur {
             r.resume(new DownloadResult(status, buf));
         }
     }
-    
+
     private static class WrapperResumer implements Resumer {
+
         private AtomicBoolean resumed = new AtomicBoolean();
         private final Resumer resumer;
         private Exception ex;
@@ -237,6 +260,6 @@ public class GetActeur extends Acteur {
                 throw new IllegalStateException("Already resumed", ex);
             }
         }
-        
+
     }
 }

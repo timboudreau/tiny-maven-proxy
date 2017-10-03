@@ -66,6 +66,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -81,6 +82,9 @@ public class Downloader {
     private final Logger logger;
     private final ApplicationControl control;
 
+    static final String SID = Long.toString(System.currentTimeMillis(), 36);
+    static final AtomicLong counter = new AtomicLong();
+
     @Inject
     public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger, ApplicationControl control) {
         this.client = client;
@@ -88,6 +92,10 @@ public class Downloader {
         this.finder = finder;
         this.logger = logger;
         this.control = control;
+    }
+
+    String nextDownloadId() {
+        return SID + ":" + counter.getAndIncrement();
     }
 
     interface DownloadReceiver {
@@ -113,10 +121,12 @@ public class Downloader {
         final AtomicBoolean success = new AtomicBoolean();
         class RecvImpl implements Recv {
 
+            final String downloadId = nextDownloadId();
+
             @Override
             public void onSuccess(URL u, File file, HttpResponseStatus status, HttpHeaders headers) {
                 if (success.compareAndSet(false, true)) {
-                    try (Log<?> log = logger.info("download")) {
+                    try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
                         for (Map.Entry<URL, ResponseFuture> e : futures.entrySet()) {
                             if (!u.equals(e.getKey())) {
@@ -150,7 +160,7 @@ public class Downloader {
             @Override
             public void onSuccess(URL u, ByteBuf buf, HttpResponseStatus status, HttpHeaders headers) {
                 if (success.compareAndSet(false, true)) {
-                    try (Log<?> log = logger.info("download")) {
+                    try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
                         for (Map.Entry<URL, ResponseFuture> e : futures.entrySet()) {
                             if (!u.equals(e.getKey())) {
@@ -185,9 +195,10 @@ public class Downloader {
                 if (f != null) {
                     f.cancel();
                 }
+                logger.info("oneDownloadFailed").add("dlid", downloadId).add("u", u.toString()).close();
                 if (remain == 0) {
-                    try (Log<?> log = logger.info("downloadFailed")) {
-                        log.add("path", path).add("status", status).add("id", id);
+                    try (Log<?> log = logger.info("allDownloadsFailed")) {
+                        log.add("path", path).add("status", status).add("id", id).add("u", u.toString());
                         receiver.failed(status == null ? HttpResponseStatus.NOT_FOUND : status);
                         failedURLs.put(path, path);
                     }

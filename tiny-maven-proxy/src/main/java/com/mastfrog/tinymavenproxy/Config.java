@@ -49,6 +49,8 @@ public class Config implements Iterable<URL> {
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
             + ",https://timboudreau.com/builds/plugin/repository/everything/"
             + ",https://maven.java.net/content/groups/public/"
+            + ",https://oss.sonatype.org/content/repositories/snapshots/"
+            + ",https://oss.sonatype.org/content/repositories/releases/"
             + ",https://oss.sonatype.org/";
 
     private final URL[] urls;
