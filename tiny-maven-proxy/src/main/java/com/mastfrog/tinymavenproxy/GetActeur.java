@@ -40,6 +40,7 @@ import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
+import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
@@ -49,8 +50,6 @@ import com.mastfrog.settings.Settings;
 import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
-import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DEFAULT_DOWNLOAD_CHUNK_SIZE;
-import static com.mastfrog.tinymavenproxy.TinyMavenProxy.SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
@@ -61,9 +60,13 @@ import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import io.netty.util.CharsetUtil;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoField;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -97,11 +100,21 @@ public class GetActeur extends Acteur {
             try (Log<?> log = accessLog.info("fetch")) {
                 log.add("path", path).add("id", id).add("cached", true);
                 add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(file.lastModified()));
-                setState(new RespondWith(HttpResponseStatus.OK));
                 add(Headers.CONTENT_TYPE, findMimeType(path));
+                add(Headers.CACHE_CONTROL, CacheControl.PUBLIC_MUST_REVALIDATE);
+                ZonedDateTime inm = req.header(Headers.IF_MODIFIED_SINCE);
+                if (inm != null) {
+                    long theirs = TimeUtil.toUnixTimestamp(inm.with(ChronoField.MILLI_OF_SECOND, 0));
+                    long ours = TimeUtil.toUnixTimestamp(TimeUtil.fromUnixTimestamp(file.lastModified()).with(ChronoField.MILLI_OF_SECOND, 0));
+                    if (ours <= theirs) {
+                        reply(NOT_MODIFIED);
+                        return;
+                    }
+                }
+                setState(new RespondWith(HttpResponseStatus.OK));
                 if (req.method() != HEAD) {
                     add(Headers.CONTENT_LENGTH, file.length());
-                    setResponseBodyWriter(new FileWriter(file));
+                    setResponseBodyWriter(new FileWriter(file, accessLog));
                 }
             }
         } else {
@@ -146,9 +159,8 @@ public class GetActeur extends Acteur {
 
         @Inject
         ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Closables clos, Settings settings) throws FileNotFoundException {
-            int bufferSize = settings.getInt(SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE, DEFAULT_DOWNLOAD_CHUNK_SIZE);
-            setChunked(true);
             if (!res.isFail()) {
+                setChunked(true);
                 try (Log<?> log = accessLog.info("fetch")) {
                     ok();
                     add(Headers.CONTENT_TYPE, findMimeType(evt.path()));
@@ -158,7 +170,7 @@ public class GetActeur extends Acteur {
                     if (evt.method() != HEAD) {
                         if (res.isFile()) {
                             add(Headers.CONTENT_LENGTH, res.file.length());
-                            setResponseBodyWriter(new FileWriter(res.file));
+                            setResponseBodyWriter(new FileWriter(res.file, accessLog));
                         } else {
                             setResponseWriter(new Responder(res.buf));
                         }
@@ -169,7 +181,7 @@ public class GetActeur extends Acteur {
                 reply(res.status);
                 setResponseWriter(new Responder(res.buf));
             } else {
-                notFound();
+                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
             }
         }
     }
@@ -177,9 +189,11 @@ public class GetActeur extends Acteur {
     static final class FileWriter implements ChannelFutureListener {
 
         private final File file;
+        private final Logger logger;
 
-        FileWriter(File file) {
+        FileWriter(File file, Logger logger) {
             this.file = file;
+            this.logger = logger;
         }
 
         @Override
@@ -189,6 +203,9 @@ public class GetActeur extends Acteur {
                 f.channel().writeAndFlush(region);
             } else if (f.channel().isOpen()) {
                 f.channel().close();
+                if (f.cause() != null) {
+                    logger.warn("download").add("file", file.getPath()).add(f.cause());
+                }
             }
         }
 
@@ -260,6 +277,5 @@ public class GetActeur extends Acteur {
                 throw new IllegalStateException("Already resumed", ex);
             }
         }
-
     }
 }

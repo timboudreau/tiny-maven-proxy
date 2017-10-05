@@ -26,6 +26,7 @@ package com.mastfrog.tinymavenproxy;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
+import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.Acteur;
@@ -38,6 +39,7 @@ import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.preconditions.PathRegex;
 import com.mastfrog.acteur.server.ServerBuilder;
+import com.mastfrog.acteur.server.ServerModule;
 import static com.mastfrog.acteur.server.ServerModule.BYTEBUF_ALLOCATOR_SETTINGS_KEY;
 import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
 import static com.mastfrog.acteur.server.ServerModule.DIRECT_ALLOCATOR;
@@ -46,8 +48,12 @@ import static com.mastfrog.acteur.server.ServerModule.MAX_CONTENT_LENGTH;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
 import static com.mastfrog.acteur.server.ServerModule.WORKER_THREADS;
 import com.mastfrog.acteur.util.ServerControl;
+import com.mastfrog.bunyan.Log;
+import com.mastfrog.bunyan.Logger;
+import com.mastfrog.bunyan.LoggingModule;
 import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_ASYNC_LOGGING;
 import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_LOG_LEVEL;
+import com.mastfrog.bunyan.type.Info;
 import static com.mastfrog.giulius.SettingsBindings.BOOLEAN;
 import static com.mastfrog.giulius.SettingsBindings.INT;
 import static com.mastfrog.giulius.SettingsBindings.STRING;
@@ -55,10 +61,12 @@ import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import com.mastfrog.url.URL;
+import com.mastfrog.util.UniqueIDs;
 import com.mastfrog.util.strings.AlignedText;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import static io.netty.handler.codec.http.HttpResponseStatus.GONE;
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -80,9 +88,12 @@ public class TinyMavenProxy extends AbstractModule {
                 .add("application.name", APPLICATION_NAME)
                 .add(HTTP_COMPRESSION, "true")
                 .add(SETTINGS_KEY_DOWNLOAD_THREADS, "24")
-                .add(SETTINGS_KEY_ASYNC_LOGGING, "false")
+                .add(SETTINGS_KEY_ASYNC_LOGGING, false)
+                .add(LoggingModule.SETTINGS_KEY_LOG_TO_CONSOLE, false)
+                .add(LoggingModule.SETTINGS_KEY_LOG_FILE, "/tmp/tmproxy.log")
                 .add(WORKER_THREADS, "6")
-                .add(EVENT_THREADS, "2")
+                .add(EVENT_THREADS, "3")
+                .add(ServerModule.SETTINGS_KEY_SOCKET_WRITE_SPIN_COUNT, 32)
                 .add(SETTINGS_KEY_LOG_LEVEL, "info")
                 .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
                 .add(PORT, "5956")
@@ -91,7 +102,7 @@ public class TinyMavenProxy extends AbstractModule {
                 .parseCommandLineArguments(args).build();
         ServerControl ctrl = new ServerBuilder(APPLICATION_NAME)
                 .add(new TinyMavenProxy())
-                .add(new ActeurBunyanModule(true).bindLogger(DOWNLOAD_LOGGER))
+                .add(new ActeurBunyanModule(true).bindLogger(DOWNLOAD_LOGGER).bindLogger("startup"))
                 .enableOnlyBindingsFor(BOOLEAN, INT, STRING)
                 .add(settings)
                 .withType(DownloadResult.class)
@@ -104,19 +115,41 @@ public class TinyMavenProxy extends AbstractModule {
     protected void configure() {
         bind(HttpClient.class).toProvider(HttpClientProvider.class);
         bind(StartupLogger.class).asEagerSingleton();
+        bind(UniqueIDs.class).toProvider(UniqueIDsProvider.class).in(Scopes.SINGLETON);
+    }
+
+    public static final String SETTINGS_KEY_UIDS_FILE = "uids.base";
+
+    @Singleton
+    static final class UniqueIDsProvider implements Provider<UniqueIDs> {
+
+        private final UniqueIDs uniqueIds;
+
+        @Inject
+        UniqueIDsProvider(Settings settings) throws IOException {
+            uniqueIds = new UniqueIDs(new File(settings.getString("uids.base", ".uids")));
+        }
+
+        @Override
+        public UniqueIDs get() {
+            return uniqueIds;
+        }
     }
 
     static final class StartupLogger {
 
         @Inject
-        StartupLogger(Settings settings, Config config) {
+        StartupLogger(Settings settings, Config config, @Named("startup") Logger startup) {
             StringBuilder sb = new StringBuilder("TinyMavenProxy 1.5 on port\t" + settings.getInt("port") + " serving:\n");
-            for (URL u : config) {
-                sb.append("Repo:\t").append(u).append('\n');
-            }
-            sb.append("Settings:\n");
-            for (String key : new String[] {SETTINGS_KEY_DOWNLOAD_THREADS, WORKER_THREADS, EVENT_THREADS}) {
-                sb.append(key).append("\t").append(settings.getString(key)).append('\n');
+            try (Log<Info> log = startup.info("config", config)) {
+                for (URL u : config) {
+                    sb.append("\tRepo:\t").append(u).append('\n');
+                }
+                sb.append("Settings:\n");
+                for (String key : new String[]{SETTINGS_KEY_DOWNLOAD_THREADS, WORKER_THREADS, EVENT_THREADS}) {
+                    sb.append(key).append("\t").append(settings.getString(key)).append('\n');
+                    log.add(key, settings.getString(key));
+                }
             }
             System.out.println(AlignedText.formatTabbed(sb));
         }

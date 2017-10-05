@@ -40,7 +40,7 @@ import com.mastfrog.netty.http.client.StateType;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
 import com.mastfrog.url.Path;
 import com.mastfrog.url.URL;
-import com.mastfrog.util.GUIDFactory;
+import com.mastfrog.util.UniqueIDs;
 import com.mastfrog.util.thread.Receiver;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -84,14 +84,16 @@ public class Downloader {
 
     static final String SID = Long.toString(System.currentTimeMillis(), 36);
     static final AtomicLong counter = new AtomicLong();
+    private final UniqueIDs ids;
 
     @Inject
-    public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger, ApplicationControl control) {
+    public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger, ApplicationControl control, UniqueIDs ids) {
         this.client = client;
         this.config = config;
         this.finder = finder;
         this.logger = logger;
         this.control = control;
+        this.ids = ids;
     }
 
     String nextDownloadId() {
@@ -273,7 +275,7 @@ public class Downloader {
 
         private void createTempfile() throws IOException {
             File tmp = new File(System.getProperty("java.io.tmpdir"));
-            tempfile = new File(tmp, "maven-dl-" + GUIDFactory.get().newGUID(1, 4) + Long.toString(System.currentTimeMillis()));
+            tempfile = new File(tmp, "maven-dl-" + ids.newId() + Long.toString(System.currentTimeMillis()));
             if (!tempfile.createNewFile()) {
                 throw new IOException("Could not create " + tempfile);
             }

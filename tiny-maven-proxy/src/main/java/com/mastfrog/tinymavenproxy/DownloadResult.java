@@ -24,10 +24,8 @@
 package com.mastfrog.tinymavenproxy;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import static io.netty.util.CharsetUtil.UTF_8;
 import java.io.File;
 
 /**

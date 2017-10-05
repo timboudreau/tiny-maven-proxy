@@ -23,6 +23,7 @@
  */
 package com.mastfrog.tinymavenproxy;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.url.Path;
@@ -34,8 +35,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  *
@@ -90,6 +93,20 @@ public class Config implements Iterable<URL> {
                 }
             }
         }
+    }
+
+    @JsonProperty("mirroring")
+    Set<String> urlStrings() {
+        Set<String> result = new HashSet<>();
+        for (URL url : urls) {
+            result.add(url.toString());
+        }
+        return result;
+    }
+
+    @JsonProperty("dir")
+    String path() {
+        return dir.getAbsolutePath();
     }
 
     public Collection<URL> withPath(Path path) {

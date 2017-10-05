@@ -23,7 +23,6 @@
  */
 package com.mastfrog.tinymavenproxy;
 
-import com.google.common.io.Files;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.errors.ResponseException;
@@ -40,7 +39,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.ZonedDateTime;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -101,44 +99,37 @@ public class FileFinder {
             return;
         }
         final ByteBuf buf = content.duplicate();
-        threadPool.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                final File target = new File(config.dir, path.toString().replace('/', File.separatorChar));
-                buf.retain();
-                if (!target.exists()) {
-                    if (!target.getParentFile().exists()) {
-                        if (!target.getParentFile().mkdirs()) {
-                            throw new IOException("Could not create " + target.getParentFile());
-                        }
-                    }
-                    if (!target.createNewFile()) {
-                        throw new IOException("Could not create " + target);
+        threadPool.submit(() -> {
+            final File target = new File(config.dir, path.toString().replace('/', File.separatorChar));
+            buf.retain();
+            if (!target.exists()) {
+                if (!target.getParentFile().exists()) {
+                    if (!target.getParentFile().mkdirs()) {
+                        throw new IOException("Could not create " + target.getParentFile());
                     }
                 }
-                try (ByteBufInputStream in = new ByteBufInputStream(buf)) {
-                    try (OutputStream out = new BufferedOutputStream(new FileOutputStream(target))) {
-                        Streams.copy(in, out, 1024);
-                    }
-                } catch (IOException ioe) {
-                    if (target.exists()) {
-                        target.delete();
-                    }
-                    throw ioe;
-                } finally {
-                    buf.release();
+                if (!target.createNewFile()) {
+                    throw new IOException("Could not create " + target);
                 }
-                threadPool.submit(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        if (lastModified != null) {
-                            target.setLastModified(TimeUtil.toUnixTimestamp(lastModified));
-                        }
-                    }
-                });
-                return null;
             }
+            try (ByteBufInputStream in = new ByteBufInputStream(buf)) {
+                try (OutputStream out = new BufferedOutputStream(new FileOutputStream(target))) {
+                    Streams.copy(in, out, 1024);
+                }
+            } catch (IOException ioe) {
+                if (target.exists()) {
+                    target.delete();
+                }
+                throw ioe;
+            } finally {
+                buf.release();
+            }
+            threadPool.submit(() -> {
+                if (lastModified != null) {
+                    target.setLastModified(TimeUtil.toUnixTimestamp(lastModified));
+                }
+            });
+            return null;
         });
     }
 }
