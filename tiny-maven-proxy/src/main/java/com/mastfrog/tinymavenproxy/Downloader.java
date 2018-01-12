@@ -127,6 +127,7 @@ public class Downloader {
 
             @Override
             public void onSuccess(URL u, File file, HttpResponseStatus status, HttpHeaders headers) {
+                config.debugLog("on success A with ", u);
                 if (success.compareAndSet(false, true)) {
                     try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
@@ -161,6 +162,7 @@ public class Downloader {
 
             @Override
             public void onSuccess(URL u, ByteBuf buf, HttpResponseStatus status, HttpHeaders headers) {
+                config.debugLog("onSuccess b ", u);
                 if (success.compareAndSet(false, true)) {
                     try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
@@ -188,6 +190,7 @@ public class Downloader {
 
             @Override
             public void onFail(URL u, HttpResponseStatus status) {
+                config.debugLog("   download failed: ", u, status);
                 if (success.get() || !failed.compareAndSet(false, true)) {
                     return;
                 }

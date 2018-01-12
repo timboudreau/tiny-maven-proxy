@@ -1,7 +1,7 @@
 *.class
 nbactions.xml
 nb-configuration.xml
-
+tiny-maven-proxy/.uids
 # Package Files #
 *.jar
 *.war

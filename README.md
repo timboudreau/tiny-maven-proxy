@@ -36,14 +36,14 @@ the command-line, or in a `tiny-maven-proxy.properties` file that can live in
 #### Example
 
 ```
-java -jar tiny-maven-proxy.jar --maven.dir /var/lib/maven --urls https://repo1.maven.org/maven2,http://bits.netbeans.org/maven2/
+java -jar tiny-maven-proxy.jar --maven.dir /var/lib/maven --mirror https://repo1.maven.org/maven2,http://bits.netbeans.org/maven2/
 ```
 
 or you could create `/etc/tiny-maven-proxy.properties` and put in it:
 
 ```
 maven.dir=/var/lib/maven
-urls=urls https://repo1.maven.org/maven2,http://bits.netbeans.org/maven2/
+mirror=https://repo1.maven.org/maven2,http://bits.netbeans.org/maven2/
 ```
 
 Other properties that affect Acteur that may be useful:
@@ -59,7 +59,7 @@ If `maven.dir` is not set, it will create a `/maven` directory in the system
 temporary dir (on most OSs this is wiped on reboot).
 
 The following is the list of Maven repositories it proxies by default, if you 
-do not set the `urls` setting:
+do not set the `mirror` setting:
 
     * https://repo1.maven.org/maven2
     * http://bits.netbeans.org/maven2/

@@ -46,7 +46,6 @@ import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
 import com.mastfrog.bunyan.Log;
 import com.mastfrog.bunyan.Logger;
-import com.mastfrog.settings.Settings;
 import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
@@ -97,6 +96,7 @@ public class GetActeur extends Acteur {
         }
         File file = finder.find(path);
         if (file != null) {
+            config.debugLog("send existing file ", file);
             try (Log<?> log = accessLog.info("fetch")) {
                 log.add("path", path).add("id", id).add("cached", true);
                 add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(file.lastModified()));
@@ -111,10 +111,11 @@ public class GetActeur extends Acteur {
                         return;
                     }
                 }
-                setState(new RespondWith(HttpResponseStatus.OK));
+                ok();
                 if (req.method() != HEAD) {
                     add(Headers.CONTENT_LENGTH, file.length());
-                    setResponseBodyWriter(new FileWriter(file, accessLog));
+                    setChunked(false);
+                    setResponseBodyWriter(new FileWriter(file, accessLog, config));
                 }
             }
         } else {
@@ -124,9 +125,11 @@ public class GetActeur extends Acteur {
                 return;
             }
             setChunked(true);
-            final Resumer r = def.defer();
-            ChannelFutureListener l = dl.download(path, id, new DownloadReceiverImpl(r));
-            req.channel().closeFuture().addListener(l);
+            def.defer((Resumer res) -> {
+                config.debugLog("  defer and download ", path);
+                ChannelFutureListener l = dl.download(path, id, new DownloadReceiverImpl(res, config));
+                req.channel().closeFuture().addListener(l);
+            });
             next();
         }
     }
@@ -158,7 +161,7 @@ public class GetActeur extends Acteur {
     static class ConcludeHttpRequest extends Acteur {
 
         @Inject
-        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Closables clos, Settings settings) throws FileNotFoundException {
+        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Config config) throws FileNotFoundException {
             if (!res.isFail()) {
                 setChunked(true);
                 try (Log<?> log = accessLog.info("fetch")) {
@@ -170,16 +173,16 @@ public class GetActeur extends Acteur {
                     if (evt.method() != HEAD) {
                         if (res.isFile()) {
                             add(Headers.CONTENT_LENGTH, res.file.length());
-                            setResponseBodyWriter(new FileWriter(res.file, accessLog));
+                            setResponseBodyWriter(new FileWriter(res.file, accessLog, config));
                         } else {
-                            setResponseWriter(new Responder(res.buf));
+                            setResponseWriter(new Responder(res.buf, config));
                         }
                     }
                     log.add("path", evt.path()).add("id", id).add("cached", false);
                 }
             } else if (res.isFail() && res.buf != null) {
                 reply(res.status);
-                setResponseWriter(new Responder(res.buf));
+                setResponseWriter(new Responder(res.buf, config));
             } else {
                 reply(NOT_FOUND, "Not cached and could not download " + evt.path());
             }
@@ -190,15 +193,18 @@ public class GetActeur extends Acteur {
 
         private final File file;
         private final Logger logger;
+        private final Config config;
 
-        FileWriter(File file, Logger logger) {
+        FileWriter(File file, Logger logger, Config config) {
             this.file = file;
             this.logger = logger;
+            this.config = config;
         }
 
         @Override
         public void operationComplete(ChannelFuture f) throws Exception {
             if (f.isSuccess()) {
+                config.debugLog("Send file region for ", file);
                 FileRegion region = new DefaultFileRegion(file, 0, file.length());
                 f.channel().writeAndFlush(region);
             } else if (f.channel().isOpen()) {
@@ -214,13 +220,16 @@ public class GetActeur extends Acteur {
     static class Responder extends ResponseWriter {
 
         private final ByteBuf buf;
+        private final Config config;
 
-        public Responder(ByteBuf buf) {
+        public Responder(ByteBuf buf, Config config) {
             this.buf = buf;
+            this.config = config;
         }
 
         @Override
         public Status write(Event<?> evt, Output out, int iteration) throws Exception {
+            config.debugLog("use response writer with ", buf.readableBytes());
             out.write(buf);
             return Status.DONE;
         }
@@ -229,28 +238,34 @@ public class GetActeur extends Acteur {
     private static class DownloadReceiverImpl implements DownloadReceiver {
 
         private final Resumer r;
+        private final Config config;
 
-        public DownloadReceiverImpl(Resumer r) {
+        public DownloadReceiverImpl(Resumer r, Config config) {
             this.r = new WrapperResumer(r);
+            this.config = config;
         }
 
         @Override
         public void receive(HttpResponseStatus status, ByteBuf buf, HttpHeaders headers) {
+            config.debugLog("  resume with ", buf.readableBytes());
             r.resume(new DownloadResult(status, buf, headers));
         }
 
         @Override
         public void failed(final HttpResponseStatus status) {
+            config.debugLog(" fail ", status);
             r.resume(new DownloadResult(status));
         }
 
         @Override
         public void receive(HttpResponseStatus status, File file, HttpHeaders headers) {
+            config.debugLog("resume with ", file);
             r.resume(new DownloadResult(status, file, headers));
         }
 
         @Override
         public void failed(HttpResponseStatus status, String msg) {
+            config.debugLog("  fail ", status, msg);
             ByteBuf buf = Unpooled.buffer(msg.length() + 4);
             buf.writeCharSequence(msg, CharsetUtil.UTF_8);
             buf.writeChar('\n');

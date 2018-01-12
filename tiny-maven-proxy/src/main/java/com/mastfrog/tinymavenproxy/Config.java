@@ -25,6 +25,7 @@ package com.mastfrog.tinymavenproxy;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.url.Path;
 import com.mastfrog.url.PathElement;
@@ -44,6 +45,7 @@ import java.util.Set;
  *
  * @author Tim Boudreau
  */
+@Singleton
 public class Config implements Iterable<URL> {
     public static final String SETTINGS_KEY_MIRROR_URLS = "mirror";
     public static final String MAVEN_CACHE_DIR = "maven.dir";
@@ -58,9 +60,11 @@ public class Config implements Iterable<URL> {
 
     private final URL[] urls;
     public final File dir;
+    final boolean debugLog;
 
     @Inject
     Config(Settings s) throws IOException {
+        debugLog = s.getBoolean("maven.proxy.debug", false);
         String[] u = s.getString(SETTINGS_KEY_MIRROR_URLS, DEFAULT_URLS).split(",");
         urls = new URL[u.length];
         for (int i = 0; i < u.length; i++) {
@@ -124,5 +128,18 @@ public class Config implements Iterable<URL> {
     @Override
     public Iterator<URL> iterator() {
         return Arrays.asList(urls).iterator();
+    }
+
+    void debugLog(String msg, Object... objs) {
+        if (debugLog) {
+            StringBuilder sb = new StringBuilder(msg);
+            for (int i = 0; i < objs.length; i++) {
+                sb.append(' ').append(objs[i]);
+                if (i != objs.length-1) {
+                    sb.append(',');
+                }
+            }
+            System.out.println(sb);
+        }
     }
 }

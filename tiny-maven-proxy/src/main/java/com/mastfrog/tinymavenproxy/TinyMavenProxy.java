@@ -86,7 +86,7 @@ public class TinyMavenProxy extends AbstractModule {
     public static void main(String[] args) throws IOException, InterruptedException {
         Settings settings = new SettingsBuilder(APPLICATION_NAME)
                 .add("application.name", APPLICATION_NAME)
-                .add(HTTP_COMPRESSION, "true")
+                .add(HTTP_COMPRESSION, "false")
                 .add(SETTINGS_KEY_DOWNLOAD_THREADS, "24")
                 .add(SETTINGS_KEY_ASYNC_LOGGING, false)
                 .add(LoggingModule.SETTINGS_KEY_LOG_TO_CONSOLE, false)
