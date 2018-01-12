@@ -30,7 +30,7 @@ Configuration
 
 There are two properties you'll want to set.  You can either set them from
 the command-line, or in a `tiny-maven-proxy.properties` file that can live in
-`/etc`, `/opt/local/etc`, `/~` or `./`.
+`/etc`, `/opt/local/etc`, `/~` or `./` (these override each other in that order).
 
 
 #### Example
