@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mastfrog.settings.Settings;
+import static com.mastfrog.tinymavenproxy.TinyMavenProxy.SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE;
 import com.mastfrog.url.Path;
 import com.mastfrog.url.PathElement;
 import com.mastfrog.url.URL;
@@ -61,9 +62,11 @@ public class Config implements Iterable<URL> {
     private final URL[] urls;
     public final File dir;
     final boolean debugLog;
+    final int bufferSize;
 
     @Inject
     Config(Settings s) throws IOException {
+        bufferSize = s.getInt(SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE, 1480);
         debugLog = s.getBoolean("maven.proxy.debug", false);
         String[] u = s.getString(SETTINGS_KEY_MIRROR_URLS, DEFAULT_URLS).split(",");
         urls = new URL[u.length];

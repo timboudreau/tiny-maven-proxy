@@ -229,6 +229,7 @@ public class Downloader {
                                     break;
                                 case HeadersReceived:
                                     State.HeadersReceived hr = (State.HeadersReceived) t;
+                                    System.out.println("GOT " + hr.get().status() + "\n" + hr.get().headers());
                                     if (hr.get().status().code() > 399) {
                                         impl.onFail(u, hr.get().status());
                                     }

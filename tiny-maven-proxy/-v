@@ -1,0 +1,121 @@
+== Info:   Trying 10.0.0.101...
+== Info: TCP_NODELAY set
+== Info: Connected to dr.timboudreau.org (10.0.0.101) port 5956 (#0)
+=> Send header, 129 bytes (0x81)
+0000: GET /com/mastfrog/acteur/2.3.2/acteur-2.3.2.pom HTTP/1.1
+003a: Host: dr.timboudreau.org:5956
+0059: User-Agent: curl/7.58.0
+0072: Accept: */*
+007f: 
+<= Recv header, 17 bytes (0x11)
+0000: HTTP/1.1 200 OK
+<= Recv header, 17 bytes (0x11)
+0000: allow: GET,HEAD
+<= Recv header, 32 bytes (0x20)
+0000: access-control-allow-origin: *
+<= Recv header, 40 bytes (0x28)
+0000: access-control-allow-credentials: true
+<= Recv header, 82 bytes (0x52)
+0000: access-control-allow-headers: accept,authorization,content-type,
+0040: x-requested-with
+<= Recv header, 59 bytes (0x3b)
+0000: access-control-allow-methods: GET,POST,PUT,DELETE,OPTIONS
+<= Recv header, 29 bytes (0x1d)
+0000: access-control-max-age: 300
+<= Recv header, 39 bytes (0x27)
+0000: content-type: text/xml; charset=utf-8
+<= Recv header, 48 bytes (0x30)
+0000: last-modified: Fri, 2 Mar 2018 05:15:25 -05:00
+<= Recv header, 39 bytes (0x27)
+0000: cache-control: public,must-revalidate
+<= Recv header, 22 bytes (0x16)
+0000: content-length: 4682
+<= Recv header, 29 bytes (0x1d)
+0000: transfer-encoding: identity
+<= Recv header, 28 bytes (0x1c)
+0000: transfer-encoding: chunked
+<= Recv header, 26 bytes (0x1a)
+0000: server: tiny-maven-proxy
+<= Recv header, 39 bytes (0x27)
+0000: date: Sun, 4 Mar 2018 11:43:00 -05:00
+<= Recv header, 2 bytes (0x2)
+0000: 
+<= Recv data, 4690 bytes (0x1252)
+0000: 124a
+0006: <?xml version="1.0"?>.<project xmlns="http://maven.apache.org/PO
+0046: M/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" x
+0086: si:schemaLocation="http://maven.apache.org/POM/4.0.0 http://mave
+00c6: n.apache.org/xsd/maven-4.0.0.xsd">.    <modelVersion>4.0.0</mode
+0106: lVersion>.    <parent>.        <groupId>com.mastfrog</groupId>. 
+0146:        <artifactId>mastfrog-parent</artifactId>.        <version
+0186: >2.3.2</version>.        <relativePath/>.    </parent>.    <arti
+01c6: factId>acteur</artifactId>.    <name>Acteur</name>.    <dependen
+0206: cies>.        <dependency>.            <groupId>${project.groupI
+0246: d}</groupId>.            <artifactId>acteur-base</artifactId>.  
+0286:       </dependency>.        <dependency>.            <groupId>${
+02c6: project.groupId}</groupId>.            <artifactId>giulius</arti
+0306: factId>.        </dependency>.        <dependency>.            <
+0346: groupId>${project.groupId}</groupId>.            <artifactId>act
+0386: eur-util</artifactId>.        </dependency>.        <dependency>
+03c6: .            <groupId>${project.groupId}</groupId>.            <
+0406: artifactId>acteur-headers</artifactId>.        </dependency>.   
+0446:      <dependency>.            <groupId>${project.groupId}</group
+0486: Id>.            <artifactId>url</artifactId>.        </dependenc
+04c6: y>.        <dependency>.            <groupId>${project.groupId}<
+0506: /groupId>.            <artifactId>scopes</artifactId>.        </
+0546: dependency>.        <dependency>.            <groupId>${project.
+0586: groupId}</groupId>.            <artifactId>giulius-threadpool</a
+05c6: rtifactId>.        </dependency>.        <dependency>.          
+0606:   <groupId>${project.groupId}</groupId>.            <artifactId>
+0646: netty-http-test-harness</artifactId>.            <scope>test</sc
+0686: ope>.        </dependency>.        <dependency>.            <gro
+06c6: upId>${project.groupId}</groupId>.            <artifactId>netty-
+0706: http-client</artifactId>.            <scope>test</scope>.       
+0746:  </dependency>.        <dependency>.            <groupId>${proje
+0786: ct.groupId}</groupId>.            <artifactId>giulius-tests</art
+07c6: ifactId>.            <scope>test</scope>.        </dependency>. 
+0806:        <dependency>.            <groupId>${project.groupId}</gro
+0846: upId>.            <artifactId>marshaller-registry</artifactId>. 
+0886:        </dependency>.        <dependency>.            <groupId>i
+08c6: o.netty</groupId>.            <artifactId>netty-buffer</artifact
+0906: Id>.        </dependency>.        <dependency>.            <grou
+0946: pId>io.netty</groupId>.            <artifactId>netty-handler</ar
+0986: tifactId>.        </dependency>.        <dependency>.           
+09c6:  <groupId>org.javassist</groupId>.            <artifactId>javass
+0a06: ist</artifactId>.        </dependency>.        <dependency>.    
+0a46:         <groupId>com.fasterxml.jackson.core</groupId>.          
+0a86:   <artifactId>jackson-databind</artifactId>.        </dependency
+0ac6: >.        <dependency>.            <groupId>${project.groupId}</
+0b06: groupId>.            <artifactId>numble</artifactId>.        </d
+0b46: ependency>.    </dependencies>.    <build>.        <plugins>.   
+0b86:          <plugin>.                <groupId>org.apache.maven.plug
+0bc6: ins</groupId>.                <artifactId>maven-surefire-plugin<
+0c06: /artifactId>.                <version>2.20.1</version>.         
+0c46:        <configuration>.                    <!--                 
+0c86:    <parallelMavenExecution>false</parallelMavenExecution>.      
+0cc6:               <reuseForks>false</reuseForks>.                   
+0d06:  <parallel>none</parallel>.                    <threadCount>0</t
+0d46: hreadCount>.                    <forkMode>never</forkMode>.     
+0d86:                <forkCount>0</forkCount>.                    <tri
+0dc6: mStackTrace>false</trimStackTrace>.                    <useFile>
+0e06: false</useFile>                    -->.                    <para
+0e46: llelMavenExecution>true</parallelMavenExecution>.               
+0e86:      <perCoreThreadCount>4</perCoreThreadCount>.                
+0ec6:     <threadCount>8</threadCount>.                    <reuseForks
+0f06: >true</reuseForks>.                    <trimStackTrace>false</tr
+0f46: imStackTrace>.                </configuration>.            </plu
+0f86: gin>.        </plugins>.    </build>.    <url>https://github.com
+0fc6: /timboudreau/acteur</url>.    <scm>.        <url>https://github.
+1006: com/timboudreau/acteur</url>.        <connection>scm:git:https:/
+1046: /github.com/timboudreau/acteur.git</connection>.        <develop
+1086: erConnection>git@github.com/timboudreau/acteur.git</developerCon
+10c6: nection>.    </scm>.    <licenses>.        <license>.           
+1106:  <name>MIT</name>.            <url>http://opensource.org/license
+1146: s/MIT</url>.        </license>.    </licenses>.    <developers>.
+1186:         <developer>.            <name>Tim Boudreau</name>.      
+11c6:       <email>tim@timboudreau.com</email>.            <url>https:
+1206: //timboudreau.com</url>.        </developer>.    </developers>.<
+1246: /project>.
+== Info: transfer closed with outstanding read data remaining
+== Info: stopped the pause stream!
+== Info: Closing connection 0

@@ -11,3 +11,4 @@ tiny-maven-proxy/.uids
 .idea/*
 target/
 
+/tiny-maven-proxy/nbproject/

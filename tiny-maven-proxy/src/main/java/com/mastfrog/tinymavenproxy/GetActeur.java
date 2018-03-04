@@ -35,6 +35,7 @@ import com.mastfrog.acteur.annotations.Concluders;
 import com.mastfrog.acteur.annotations.HttpCall;
 import com.mastfrog.acteur.errors.Err;
 import com.mastfrog.acteur.headers.Headers;
+import static com.mastfrog.acteur.headers.Headers.CONTENT_LENGTH;
 import static com.mastfrog.acteur.headers.Headers.LAST_MODIFIED;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
@@ -57,13 +58,18 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
+import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -72,7 +78,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Tim Boudreau
  */
-@HttpCall(order = Integer.MAX_VALUE - 1)
+@HttpCall(order = Integer.MAX_VALUE - 1, scopeTypes = DownloadResult.class)
 @Concluders(ConcludeHttpRequest.class)
 @Methods({GET, HEAD})
 @Description("Download maven artifacts, fetching them from remote repositories "
@@ -163,7 +169,6 @@ public class GetActeur extends Acteur {
         @Inject
         ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Config config) throws FileNotFoundException {
             if (!res.isFail()) {
-                setChunked(true);
                 try (Log<?> log = accessLog.info("fetch")) {
                     ok();
                     add(Headers.CONTENT_TYPE, findMimeType(evt.path()));
@@ -171,10 +176,12 @@ public class GetActeur extends Acteur {
                         add(LAST_MODIFIED, LAST_MODIFIED.toValue(res.headers.get(LAST_MODIFIED.name())));
                     }
                     if (evt.method() != HEAD) {
+                        add(Headers.CACHE_CONTROL, CacheControl.PUBLIC_MUST_REVALIDATE);
                         if (res.isFile()) {
-                            add(Headers.CONTENT_LENGTH, res.file.length());
-                            setResponseBodyWriter(new FileWriter(res.file, accessLog, config));
+                            setChunked(true);
+                            setResponseBodyWriter(new FW(res.file, accessLog, config, config.bufferSize, true));
                         } else {
+                            add(CONTENT_LENGTH, res.buf.readableBytes());
                             setResponseWriter(new Responder(res.buf, config));
                         }
                     }
@@ -187,6 +194,74 @@ public class GetActeur extends Acteur {
                 reply(NOT_FOUND, "Not cached and could not download " + evt.path());
             }
         }
+    }
+
+    static final class FW implements ChannelFutureListener {
+
+        private final File file;
+        private final Logger logger;
+        private final Config config;
+        private FileChannel channel;
+        private final ByteBuffer buffer;
+        private final boolean chunked;
+
+        FW(File file, Logger logger, Config config, int bufferLength, boolean chunked) {
+            this.file = file;
+            this.logger = logger;
+            this.config = config;
+            this.buffer = ByteBuffer.allocateDirect(bufferLength);
+            this.chunked = chunked;
+        }
+
+        private FileChannel channel(ChannelFuture fut) throws FileNotFoundException {
+            synchronized (this) {
+                if (channel == null) {
+                    channel = new FileInputStream(file).getChannel();
+                    fut.channel().closeFuture().addListener(f -> {
+                        channel.close();
+                    });
+                }
+            }
+            return channel;
+        }
+
+        @Override
+        public void operationComplete(ChannelFuture f) throws Exception {
+            if (f.cause() != null) {
+                if (f.channel().isOpen()) {
+                    f.channel().close();
+                }
+                logger.warn("filewrite").add(f.cause()).close();
+                return;
+            }
+            try {
+                FileChannel channel = channel(f);
+                if (!channel.isOpen() || channel.position() == channel.size()) {
+                    if (chunked) {
+                        f.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(CLOSE);
+                    } else {
+                        f.addListener(CLOSE);
+                    }
+                    return;
+                }
+                buffer.rewind();
+                channel.read(buffer);
+                buffer.flip();
+                ByteBuf buf = Unpooled.wrappedBuffer(buffer);
+                if (chunked) {
+                    f.channel().writeAndFlush(new DefaultHttpContent(buf)).addListener(this);
+                } else {
+                    f.channel().writeAndFlush(buf).addListener(this);
+                }
+            } catch (Exception ex) {
+                if (channel != null) {
+                    channel.close();
+                }
+                f.channel().close();
+                logger.warn("filewrite").add(ex).close();
+            }
+        }
+
     }
 
     static final class FileWriter implements ChannelFutureListener {
@@ -206,7 +281,7 @@ public class GetActeur extends Acteur {
             if (f.isSuccess()) {
                 config.debugLog("Send file region for ", file);
                 FileRegion region = new DefaultFileRegion(file, 0, file.length());
-                f.channel().writeAndFlush(region);
+                f.channel().writeAndFlush(region).addListener(CLOSE);
             } else if (f.channel().isOpen()) {
                 f.channel().close();
                 if (f.cause() != null) {
