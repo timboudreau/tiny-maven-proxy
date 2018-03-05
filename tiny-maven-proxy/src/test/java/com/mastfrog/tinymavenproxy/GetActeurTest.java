@@ -25,6 +25,7 @@ import com.mastfrog.tinymavenproxy.GetActeurTest.M;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
 import com.mastfrog.util.Exceptions;
 import com.mastfrog.util.Streams;
+import com.mastfrog.util.Strings;
 import com.mastfrog.util.net.PortFinder;
 import com.mastfrog.util.thread.Receiver;
 import com.mastfrog.util.time.TimeUtil;
@@ -32,6 +33,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -40,6 +43,7 @@ import java.nio.file.Path;
 import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -47,6 +51,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -127,6 +132,52 @@ public class GetActeurTest {
                 .content();
 
         assertEquals("Hello /com/foo/whoo.pom", s4);
+
+        String nf = harn.get("nothing")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                .await()
+                .assertCode(404)
+                .content();
+
+        System.out.println("NF: " + nf);
+
+        IndexEntry[] l = harn.get("com/foo")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                .await()
+                .assertStatus(OK)
+                .content(IndexEntry[].class);
+        Arrays.sort(l);
+        assertNotNull(l);
+        assertEquals(2, l.length);
+        System.out.println(Strings.join(',', l));
+
+        assertEquals("bar.pom", l[0].name);
+        assertEquals("whoo.pom", l[1].name);
+        assertEquals(0, l[0].lastModified);
+        assertEquals(0, l[1].lastModified);
+        assertTrue(l[0].file);
+        assertTrue(l[1].file);
+    }
+
+    static final class IndexEntry implements Comparable<IndexEntry> {
+        public String name;
+        public long length;
+        public boolean file;
+        public long lastModified;
+
+        @Override
+        public String toString() {
+            return "IndexEntry{" + "name=" + name + ", length=" + length + ", file=" + file + ", lastModified=" + lastModified + '}';
+        }
+
+        @Override
+        public int compareTo(IndexEntry o) {
+            return name.compareToIgnoreCase(o.name);
+        }
     }
 
     static final class M extends AbstractModule {
@@ -168,6 +219,11 @@ public class GetActeurTest {
 
         @Override
         public Object receive(HttpRequest req, ResponseHead response) throws Exception {
+            if ("/nothing".equals(req.uri())) {
+                System.out.println("RETURN NULL");
+                response.status(HttpResponseStatus.NOT_FOUND);
+                return null;
+            }
             System.out.println("TM REQUEST " + req.headers());
             response.header(HttpHeaderNames.CONTENT_TYPE).set("text/plain; charset=UTF-8");
             response.header(HttpHeaderNames.LAST_MODIFIED).set(TimeUtil.toHttpHeaderFormat(TimeUtil.EPOCH.withZoneSameInstant(TimeUtil.GMT)));

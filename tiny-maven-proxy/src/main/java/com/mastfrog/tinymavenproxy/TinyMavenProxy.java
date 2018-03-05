@@ -95,7 +95,7 @@ public class TinyMavenProxy extends AbstractModule {
                 .add(WORKER_THREADS, "6")
                 .add(EVENT_THREADS, "3")
                 .add(ServerModule.SETTINGS_KEY_SOCKET_WRITE_SPIN_COUNT, 32)
-                .add(SETTINGS_KEY_LOG_LEVEL, "info")
+                .add(SETTINGS_KEY_LOG_LEVEL, "trace")
                 .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
                 .add(PORT, "5956")
                 .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, DIRECT_ALLOCATOR)
@@ -103,7 +103,10 @@ public class TinyMavenProxy extends AbstractModule {
                 .parseCommandLineArguments(args).build();
         ServerControl ctrl = new ServerBuilder(APPLICATION_NAME)
                 .add(new TinyMavenProxy())
-                .add(new ActeurBunyanModule(true).bindLogger(DOWNLOAD_LOGGER).bindLogger("startup"))
+                .add(new ActeurBunyanModule(true)
+                        .bindLogger(DOWNLOAD_LOGGER).bindLogger("startup")
+//                        .useProbe(false)
+                )
                 .enableOnlyBindingsFor(BOOLEAN, INT, STRING)
                 .add(settings)
                 .build().start();
@@ -177,9 +180,9 @@ public class TinyMavenProxy extends AbstractModule {
         @Inject
         HttpClientProvider(ByteBufAllocator alloc, @Named(SETTINGS_KEY_DOWNLOAD_THREADS) int downloadThreads) {
             client = HttpClient.builder()
-                    .setUserAgent("TinyMavenProxy 1.1")
                     .followRedirects()
                     .useCompression()
+                    .setUserAgent("tiny-maven-proxy-1.6")
                     .setChannelOption(ChannelOption.ALLOCATOR, alloc)
                     .threadCount(downloadThreads)
                     .maxChunkSize(16384).build();

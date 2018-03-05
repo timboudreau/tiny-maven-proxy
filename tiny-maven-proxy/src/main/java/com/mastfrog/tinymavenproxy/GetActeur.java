@@ -52,6 +52,7 @@ import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.time.TimeUtil;
+import static com.mastfrog.util.time.TimeUtil.GMT;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -61,7 +62,6 @@ import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
@@ -73,6 +73,7 @@ import java.nio.channels.FileChannel;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -105,7 +106,7 @@ public class GetActeur extends Acteur {
             config.debugLog("send existing file ", file);
             try (Log<?> log = accessLog.info("fetch")) {
                 log.add("path", path).add("id", id).add("cached", true);
-                add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(file.lastModified()));
+                add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(file.lastModified()).withZoneSameInstant(GMT));
                 add(Headers.CONTENT_TYPE, findMimeType(path));
                 add(Headers.CACHE_CONTROL, CacheControl.PUBLIC_MUST_REVALIDATE);
                 ZonedDateTime inm = req.header(Headers.IF_MODIFIED_SINCE);
@@ -130,7 +131,17 @@ public class GetActeur extends Acteur {
                 setResponseBodyWriter(ChannelFutureListener.CLOSE);
                 return;
             }
-            setChunked(true);
+            String el = path.getLastElement().toString();
+            if (el.toString().indexOf('.') < 0) {
+                config.debugLog("Skip for not having . ", el);
+                reject();
+                return;
+            }
+            if (VERSION_PATTERN.matcher(el).find()) {
+                config.debugLog("Skip for matching pattern", el);
+                reject();
+                return;
+            }
             def.defer((Resumer res) -> {
                 config.debugLog("  defer and download ", path);
                 ChannelFutureListener l = dl.download(path, id, new DownloadReceiverImpl(res, config));
@@ -139,6 +150,8 @@ public class GetActeur extends Acteur {
             next();
         }
     }
+
+    private static final Pattern VERSION_PATTERN = Pattern.compile("^\\d+\\.\\d+.*?");
 
     private static MediaType findMimeType(Path path) {
         if (path.size() == 0) {
@@ -191,7 +204,8 @@ public class GetActeur extends Acteur {
                 reply(res.status);
                 setResponseWriter(new Responder(res.buf, config));
             } else {
-                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
+//                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
+                reject();
             }
         }
     }

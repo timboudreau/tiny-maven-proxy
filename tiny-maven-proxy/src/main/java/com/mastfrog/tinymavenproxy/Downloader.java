@@ -78,7 +78,7 @@ public class Downloader {
     private final HttpClient client;
     private final Config config;
     private final FileFinder finder;
-    private final Cache<Path, Path> failedURLs = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+    private final Cache<Path, Path> failedURLs;
     private final Logger logger;
     private final ApplicationControl control;
 
@@ -88,6 +88,7 @@ public class Downloader {
 
     @Inject
     public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger, ApplicationControl control, UniqueIDs ids) {
+        failedURLs = CacheBuilder.newBuilder().expireAfterWrite(config.failedPathCacheMinutes, TimeUnit.MINUTES).build();
         this.client = client;
         this.config = config;
         this.finder = finder;
@@ -211,6 +212,7 @@ public class Downloader {
             }
         }
         for (final URL u : urls) {
+            config.debugLog("attempt", u);
             final RecvImpl impl = new RecvImpl();
             Receiver<State<?>> im = new RespHandler(u, impl);
             ResponseFuture f = client.get()
@@ -223,13 +225,19 @@ public class Downloader {
 
                         @Override
                         public void receive(State<?> t) {
+                            config.debugLog("state " + t, u);
                             switch (t.stateType()) {
+                                case Error :
+                                    State.Error err = (State.Error) t;
+                                    err.get().printStackTrace();
+                                    impl.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                                    break;
                                 case Closed:
                                     impl.onFail(u, HttpResponseStatus.FORBIDDEN);
                                     break;
                                 case HeadersReceived:
                                     State.HeadersReceived hr = (State.HeadersReceived) t;
-                                    System.out.println("GOT " + hr.get().status() + "\n" + hr.get().headers());
+                                    config.debugLog("Status " + u, hr.get().status());
                                     if (hr.get().status().code() > 399) {
                                         impl.onFail(u, hr.get().status());
                                     }
@@ -245,7 +253,9 @@ public class Downloader {
 
             @Override
             public void operationComplete(ChannelFuture f) throws Exception {
-                if (remaining.get() > 0) {
+                int amt = remaining.get();
+                config.debugLog("Complete w/ remaining", amt);
+                if (amt > 0) {
                     for (ResponseFuture fu : futures.values()) {
                         fu.cancel();
                     }

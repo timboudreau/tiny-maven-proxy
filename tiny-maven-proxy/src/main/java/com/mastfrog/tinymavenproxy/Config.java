@@ -32,6 +32,7 @@ import com.mastfrog.url.Path;
 import com.mastfrog.url.PathElement;
 import com.mastfrog.url.URL;
 import com.mastfrog.url.URLBuilder;
+import com.mastfrog.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ import java.util.Set;
 public class Config implements Iterable<URL> {
     public static final String SETTINGS_KEY_MIRROR_URLS = "mirror";
     public static final String MAVEN_CACHE_DIR = "maven.dir";
+    public static final String SETTINGS_KEY_CACHE_FAILED_PATHS_MINUTES = "failed.path.cache.minutes";
     private static final String DEFAULT_URLS="https://repo.maven.apache.org/maven2/"
             + ",http://bits.netbeans.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
@@ -63,9 +65,11 @@ public class Config implements Iterable<URL> {
     public final File dir;
     final boolean debugLog;
     final int bufferSize;
+    final int failedPathCacheMinutes;
 
     @Inject
     Config(Settings s) throws IOException {
+        failedPathCacheMinutes = s.getInt(SETTINGS_KEY_CACHE_FAILED_PATHS_MINUTES, 90);
         bufferSize = s.getInt(SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE, 1480);
         debugLog = s.getBoolean("maven.proxy.debug", false);
         String[] u = s.getString(SETTINGS_KEY_MIRROR_URLS, DEFAULT_URLS).split(",");
@@ -77,6 +81,7 @@ public class Config implements Iterable<URL> {
                 urls[i].getProblems().throwIfFatalPresent();
             }
         }
+        debugLog("START WITH URLS ", Strings.join(',', urls));
         String dirname = s.getString(MAVEN_CACHE_DIR);
         if (dirname == null) {
             File tmp = new File(System.getProperty("java.io.tmpdir"));
