@@ -32,6 +32,7 @@ import com.mastfrog.acteur.headers.Headers;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Methods;
+import com.mastfrog.acteur.server.PathFactory;
 import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.Streams;
@@ -62,7 +63,7 @@ import java.util.Map;
 public class Browse extends Acteur {
 
     @Inject
-    Browse(HttpEvent evt, FileFinder finder, ZonedDateTime startTime) throws NoSuchAlgorithmException {
+    Browse(HttpEvent evt, FileFinder finder, ZonedDateTime startTime, PathFactory paths) throws NoSuchAlgorithmException {
         Path path = evt.path();
         if (path.size() == 0 && !"true".equals(evt.urlParameter("browse"))) {
             ZonedDateTime headerTime = evt.header(Headers.IF_MODIFIED_SINCE);

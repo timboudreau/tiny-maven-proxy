@@ -55,7 +55,7 @@ public class Config implements Iterable<URL> {
     private static final String DEFAULT_URLS="https://repo.maven.apache.org/maven2/"
             + ",http://bits.netbeans.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
-            + ",https://timboudreau.com/builds/plugin/repository/everything/"
+            + ",https://timboudreau.com/maven/"
             + ",https://maven.java.net/content/groups/public/"
             + ",https://oss.sonatype.org/content/repositories/snapshots/"
             + ",https://oss.sonatype.org/content/repositories/releases/"
