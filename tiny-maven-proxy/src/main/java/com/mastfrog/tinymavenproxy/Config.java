@@ -32,6 +32,7 @@ import com.mastfrog.url.Path;
 import com.mastfrog.url.PathElement;
 import com.mastfrog.url.URL;
 import com.mastfrog.url.URLBuilder;
+import com.mastfrog.util.ConfigurationError;
 import com.mastfrog.util.Strings;
 import java.io.File;
 import java.io.IOException;
@@ -52,6 +53,7 @@ public class Config implements Iterable<URL> {
     public static final String SETTINGS_KEY_MIRROR_URLS = "mirror";
     public static final String MAVEN_CACHE_DIR = "maven.dir";
     public static final String SETTINGS_KEY_CACHE_FAILED_PATHS_MINUTES = "failed.path.cache.minutes";
+    public static final String SETTINGS_KEY_INDEX_DIR = "index.dir";
     private static final String DEFAULT_URLS="https://repo.maven.apache.org/maven2/"
             + ",http://bits.netbeans.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
@@ -63,6 +65,7 @@ public class Config implements Iterable<URL> {
 
     private final URL[] urls;
     public final File dir;
+    final File indexDir;
     final boolean debugLog;
     final int bufferSize;
     final int failedPathCacheMinutes;
@@ -105,6 +108,16 @@ public class Config implements Iterable<URL> {
                 }
             }
         }
+        String indexDir = s.getString(SETTINGS_KEY_INDEX_DIR, "_");
+        if ("_".equals(indexDir)) {
+            indexDir = new File(dir, ".index").getAbsolutePath();
+        }
+        this.indexDir = new File(indexDir);
+        if (!this.indexDir.exists()) {
+            if (!this.indexDir.mkdirs()) {
+                throw new ConfigurationError("Could not create index dirs " + this.indexDir);
+            }
+        }
     }
 
     @JsonProperty("mirroring")
@@ -119,6 +132,10 @@ public class Config implements Iterable<URL> {
     @JsonProperty("dir")
     String path() {
         return dir.getAbsolutePath();
+    }
+
+    File indexDir() {
+        return indexDir;
     }
 
     public Collection<URL> withPath(Path path) {

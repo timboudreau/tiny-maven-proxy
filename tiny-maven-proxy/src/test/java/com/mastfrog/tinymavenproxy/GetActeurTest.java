@@ -35,8 +35,11 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.util.CharsetUtil.UTF_8;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Path;
@@ -48,6 +51,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import static org.junit.Assert.assertEquals;
@@ -161,6 +165,18 @@ public class GetActeurTest {
         assertEquals(0, l[1].lastModified);
         assertTrue(l[0].file);
         assertTrue(l[1].file);
+
+        String fakeIndex = harn.get(".index", "nexus-maven-repository-index.properties")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                .await()
+                .assertStatus(OK)
+                .content();
+        Properties p = new Properties();
+        p.load(new ByteArrayInputStream(fakeIndex.getBytes(UTF_8)));
+        assertEquals("bar", p.get("foo"));
+        assertEquals("world", p.get("hello"));
     }
 
     static final class IndexEntry implements Comparable<IndexEntry> {
@@ -185,6 +201,8 @@ public class GetActeurTest {
         @Override
         protected void configure() {
             File dir = Files.createTempDir();
+            File indexDir = new File(dir, ".index");
+            indexDir.mkdirs();
             int port = new PortFinder().findAvailableServerPort();
             System.out.println("SERV PORT " + port);
 //            bind(HttpClient.class).toInstance(HttpClient.builder().noCompression().dontFollowRedirects().build());
@@ -196,6 +214,13 @@ public class GetActeurTest {
             bind(Integer.class).annotatedWith(Names.named("download.threads")).toInstance(3);
             bind(String.class).annotatedWith(Names.named("maven.dir")).toInstance(dir.getAbsolutePath());
             try {
+                Properties p = new Properties();
+                p.setProperty("hello", "world");
+                p.setProperty("foo", "bar");
+                File f = new File(indexDir, "nexus-maven-repository-index.properties");
+                try (FileOutputStream os = new FileOutputStream(f)) {
+                    p.store(os, "test-file");
+                }
                 Settings settings = Settings.builder()
                         .add(Config.SETTINGS_KEY_MIRROR_URLS, "http://localhost:" + port)
                         .add(Config.MAVEN_CACHE_DIR, dir.getAbsolutePath())

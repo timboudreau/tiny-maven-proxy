@@ -159,7 +159,7 @@ public class TinyMavenProxy extends AbstractModule {
     }
 
     @HttpCall(order = Integer.MIN_VALUE)
-    @PathRegex({"^favicon.ico$", "^.index.*"})
+    @PathRegex({"^favicon.ico$"})
     @Methods({GET, HEAD})
     @Description("Sends 404 for /favicon.ico")
     static class FaviconPage extends Acteur {
@@ -184,6 +184,7 @@ public class TinyMavenProxy extends AbstractModule {
                     .useCompression()
                     .setUserAgent("tiny-maven-proxy-1.6")
                     .setChannelOption(ChannelOption.ALLOCATOR, alloc)
+                    .setChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                     .threadCount(downloadThreads)
                     .maxChunkSize(16384).build();
         }
