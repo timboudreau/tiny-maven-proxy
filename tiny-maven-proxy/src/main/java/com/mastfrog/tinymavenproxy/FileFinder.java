@@ -25,19 +25,18 @@ package com.mastfrog.tinymavenproxy;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.mastfrog.acteur.errors.ResponseException;
 import com.mastfrog.acteur.server.ServerModule;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.Streams;
 import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.time.ZonedDateTime;
 import java.util.concurrent.ExecutorService;
 
@@ -61,6 +60,7 @@ public class FileFinder {
         if (f.exists() && f.isFile()) {
             return f;
         }
+        System.out.println("DID NOT FIND FILE " + path + " at " + f);
         return null;
     }
 
@@ -80,12 +80,21 @@ public class FileFinder {
             return file;
         }
         final File target = new File(config.dir, path.toString().replace('/', File.separatorChar));
+
         if (!target.getParentFile().exists() && !target.getParentFile().mkdirs()) {
             throw new IOException("Could not create dirs " + target.getParent());
         }
-        if (!file.renameTo(target)) {
-            throw new ResponseException(INTERNAL_SERVER_ERROR, "Could not rename " + file + " to " + target);
-        }
+
+        File gzipped = GetActeur.gzip(file);
+
+        Files.move(file.toPath(), target.toPath());
+        
+        File gzippedDest = new File(target.getParentFile(), "-" + target.getName() + ".gz");
+        Files.move(gzipped.toPath(), gzippedDest.toPath());
+
+//        if (!file.renameTo(target)) {
+//            throw new ResponseException(INTERNAL_SERVER_ERROR, "Could not rename " + file + " to " + target);
+//        }
         if (lastModified != null) {
             target.setLastModified(lastModified.toInstant().toEpochMilli());
         }

@@ -138,6 +138,10 @@ public class Config implements Iterable<URL> {
         return Arrays.asList(urls).iterator();
     }
 
+    public boolean isDebug() {
+        return debugLog;
+    }
+
     void debugLog(String msg, Object... objs) {
         if (debugLog) {
             StringBuilder sb = new StringBuilder(msg);

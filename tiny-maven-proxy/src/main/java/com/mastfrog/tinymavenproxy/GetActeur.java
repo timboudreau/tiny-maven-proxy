@@ -28,19 +28,20 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.Acteur;
 import com.mastfrog.acteur.Closables;
-import com.mastfrog.acteur.Event;
 import com.mastfrog.acteur.HttpEvent;
-import com.mastfrog.acteur.ResponseWriter;
+import com.mastfrog.acteur.Response;
 import com.mastfrog.acteur.annotations.Concluders;
 import com.mastfrog.acteur.annotations.HttpCall;
 import com.mastfrog.acteur.errors.Err;
 import com.mastfrog.acteur.headers.Headers;
-import static com.mastfrog.acteur.headers.Headers.CONTENT_LENGTH;
+import static com.mastfrog.acteur.headers.Headers.ACCEPT_ENCODING;
 import static com.mastfrog.acteur.headers.Headers.LAST_MODIFIED;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
+import static com.mastfrog.acteur.server.ServerModule.X_INTERNAL_COMPRESS_HEADER;
+import com.mastfrog.acteur.spi.ApplicationControl;
 import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
@@ -51,6 +52,8 @@ import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
 import com.mastfrog.url.Path;
+import com.mastfrog.util.Streams;
+import com.mastfrog.util.Strings;
 import com.mastfrog.util.time.TimeUtil;
 import static com.mastfrog.util.time.TimeUtil.GMT;
 import io.netty.buffer.ByteBuf;
@@ -60,20 +63,32 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
+import static io.netty.util.CharsetUtil.UTF_8;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import java.util.zip.Deflater;
+import java.util.zip.GZIPOutputStream;
 
 /**
  *
@@ -86,22 +101,32 @@ import java.util.regex.Pattern;
         + "and caching the results if necessary")
 public class GetActeur extends Acteur {
 
+    private final ApplicationControl ctrl;
+
     @Inject
-    GetActeur(HttpEvent req, Deferral def, Config config, FileFinder finder, Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id) throws FileNotFoundException {
+    GetActeur(HttpEvent req, Deferral def, Config config, FileFinder finder,
+            Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logger accessLog,
+            RequestID id, ApplicationControl ctrl) throws IOException {
+        this.ctrl = ctrl;
+        setChunked(true);
         if ("true".equals(req.urlParameter("browse")) || "true".equals(req.urlParameter("index"))) {
             reject();
             return;
         }
-        Path path = req.path();
+        Path path = req.path().normalize();
         if (path.size() == 0) {
             reject();
+            return;
+        }
+        if (!path.isValid()) {
+            badRequest("Invalid path " + path);
             return;
         }
         if (path.toString().contains("..")) {
             setState(new RespondWith(Err.badRequest("Relative paths not allowed")));
             return;
         }
-        File file = finder.find(path);
+        File file = finder.find(path.elideEmptyElements());
         if (file != null) {
             config.debugLog("send existing file ", file);
             try (Log<?> log = accessLog.info("fetch")) {
@@ -120,15 +145,15 @@ public class GetActeur extends Acteur {
                 }
                 ok();
                 if (req.method() != HEAD) {
-                    add(Headers.CONTENT_LENGTH, file.length());
-                    setChunked(false);
-                    setResponseBodyWriter(new FileWriter(file, accessLog, config));
+//                    add(Headers.CONTENT_LENGTH, file.length());
+                    setResponseBodyWriter(writerFor(req, file, accessLog, config, ctrl, response()));
                 }
             }
         } else {
             if (dl.isFailedPath(path)) {
-                setState(new RespondWith(404));
-                setResponseBodyWriter(ChannelFutureListener.CLOSE);
+                notFound();
+                setChunked(false);
+//                setResponseBodyWriter(ChannelFutureListener.CLOSE);
                 return;
             }
             String el = path.getLastElement().toString();
@@ -142,9 +167,10 @@ public class GetActeur extends Acteur {
                 reject();
                 return;
             }
+            Path pth = path.elideEmptyElements();
             def.defer((Resumer res) -> {
-                config.debugLog("  defer and download ", path);
-                ChannelFutureListener l = dl.download(path, id, new DownloadReceiverImpl(res, config));
+                config.debugLog("  defer and download ", pth);
+                ChannelFutureListener l = dl.download(pth, id, new DownloadReceiverImpl(res, config));
                 req.channel().closeFuture().addListener(l);
             });
             next();
@@ -180,7 +206,9 @@ public class GetActeur extends Acteur {
     static class ConcludeHttpRequest extends Acteur {
 
         @Inject
-        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog, RequestID id, Config config) throws FileNotFoundException {
+        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog,
+                RequestID id, Config config, ApplicationControl ctrl) throws FileNotFoundException, IOException {
+            setChunked(true);
             if (!res.isFail()) {
                 try (Log<?> log = accessLog.info("fetch")) {
                     ok();
@@ -191,18 +219,20 @@ public class GetActeur extends Acteur {
                     if (evt.method() != HEAD) {
                         add(Headers.CACHE_CONTROL, CacheControl.PUBLIC_MUST_REVALIDATE);
                         if (res.isFile()) {
-                            setChunked(true);
-                            setResponseBodyWriter(new FW(res.file, accessLog, config, config.bufferSize, true));
+                            log.add("file", res.file.getPath());
+//                            setResponseBodyWriter(new FW(res.file, accessLog, config, config.bufferSize, true, ctrl));
+                            setResponseBodyWriter(writerFor(evt, res.file, accessLog, config, ctrl, response()));
                         } else {
-                            add(CONTENT_LENGTH, res.buf.readableBytes());
-                            setResponseWriter(new Responder(res.buf, config));
+                            log.add("internalBuffer", true);
+                            setResponseBodyWriter(new Responder2(res.buf, config, true, ctrl));
                         }
                     }
                     log.add("path", evt.path()).add("id", id).add("cached", false);
                 }
             } else if (res.isFail() && res.buf != null) {
                 reply(res.status);
-                setResponseWriter(new Responder(res.buf, config));
+//                setResponseWriter(new Responder(res.buf, config));
+                setResponseBodyWriter(new Responder2(res.buf, config, true, ctrl));
             } else {
 //                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
                 reject();
@@ -215,22 +245,24 @@ public class GetActeur extends Acteur {
         private final File file;
         private final Logger logger;
         private final Config config;
-        private FileChannel channel;
+        private SeekableByteChannel channel;
         private final ByteBuffer buffer;
         private final boolean chunked;
+        private final ApplicationControl ctrl;
 
-        FW(File file, Logger logger, Config config, int bufferLength, boolean chunked) {
+        FW(File file, Logger logger, Config config, int bufferLength, boolean chunked, ApplicationControl ctrl) {
             this.file = file;
             this.logger = logger;
             this.config = config;
             this.buffer = ByteBuffer.allocateDirect(bufferLength);
             this.chunked = chunked;
+            this.ctrl = ctrl;
         }
 
-        private FileChannel channel(ChannelFuture fut) throws FileNotFoundException {
+        private SeekableByteChannel channel(ChannelFuture fut) throws IOException {
             synchronized (this) {
                 if (channel == null) {
-                    channel = new FileInputStream(file).getChannel();
+                    channel = Files.newByteChannel(file.toPath(), StandardOpenOption.READ);
                     fut.channel().closeFuture().addListener(f -> {
                         channel.close();
                     });
@@ -249,12 +281,12 @@ public class GetActeur extends Acteur {
                 return;
             }
             try {
-                FileChannel channel = channel(f);
+                SeekableByteChannel channel = channel(f);
                 if (!channel.isOpen() || channel.position() == channel.size()) {
                     if (chunked) {
-                        f.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(CLOSE);
-                    } else {
-                        f.addListener(CLOSE);
+                        ctrl.logFailure(f.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT));//.addListener(CLOSE);
+//                    } else {
+//                        f.addListener(CLOSE);
                     }
                     return;
                 }
@@ -263,9 +295,9 @@ public class GetActeur extends Acteur {
                 buffer.flip();
                 ByteBuf buf = Unpooled.wrappedBuffer(buffer);
                 if (chunked) {
-                    f.channel().writeAndFlush(new DefaultHttpContent(buf)).addListener(this);
+                    ctrl.logFailure(f.channel().writeAndFlush(new DefaultHttpContent(buf)).addListener(this));
                 } else {
-                    f.channel().writeAndFlush(buf).addListener(this);
+                    ctrl.logFailure(f.channel().writeAndFlush(buf).addListener(this));
                 }
             } catch (Exception ex) {
                 if (channel != null) {
@@ -275,7 +307,87 @@ public class GetActeur extends Acteur {
                 logger.warn("filewrite").add(ex).close();
             }
         }
+    }
 
+    static final FileWriter writerFor(HttpEvent request, File f, Logger logger, Config config, ApplicationControl ctrl, Response resp) throws IOException {
+        CharSequence acceptEncoding = request.header(ACCEPT_ENCODING);
+
+        boolean acceptsGzip = acceptEncoding != null
+                && (acceptEncoding == HttpHeaderValues.GZIP
+                || acceptEncoding == HttpHeaderValues.GZIP_DEFLATE
+                || Strings.charSequenceContains(acceptEncoding, HttpHeaderValues.GZIP, true));
+
+        long uncompressedLength = f.length();
+
+        resp.chunked(true);
+        if (!acceptsGzip) {
+            resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.IDENTITY);
+            resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+            return new FileWriter(f, logger, config, ctrl);
+        } else {
+            File gzippedFile = new File(f.getParentFile(), "-" + f.getName() + ".gz");
+
+            if (!gzippedFile.exists()) {
+                int bufferSize = Math.max(2048, (int) f.length());
+                if (!gzippedFile.createNewFile()) {
+                    throw new IOException("Could not create " + gzippedFile);
+                }
+                try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(gzippedFile), bufferSize)) {
+                    try (GZO gzOut = new GZO(out, 2048, true)) {
+                        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(f), 2048)) {
+                            Streams.copy(in, gzOut);
+                        }
+                    }
+                }
+                if (config.isDebug()) {
+                    resp.add(Headers.header("X-New-Gzip-File"), "1");
+                }
+                gzippedFile.setLastModified(f.lastModified());
+            }
+            long compressedLength = gzippedFile.length();
+            if (compressedLength > uncompressedLength) {
+                resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.IDENTITY);
+                resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+                return new FileWriter(f, logger, config, ctrl);
+            }
+            resp.add(Headers.CONTENT_LENGTH, compressedLength);
+            resp.add(X_INTERNAL_COMPRESS_HEADER, "true");
+            resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.GZIP);
+            return new FileWriter(gzippedFile, logger, config, ctrl);
+        }
+    }
+
+    static File gzip(File f) throws IOException {
+        File gzippedFile = new File(f.getParentFile(), "-" + f.getName() + ".gz");
+
+        if (!gzippedFile.exists()) {
+            int bufferSize = Math.max(2048, (int) f.length());
+            if (!gzippedFile.createNewFile()) {
+                throw new IOException("Could not create " + gzippedFile);
+            }
+            try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(gzippedFile), bufferSize)) {
+                try (GZO gzOut = new GZO(out, 2048, true)) {
+                    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(f), 2048)) {
+                        Streams.copy(in, gzOut);
+                    }
+                }
+            }
+            gzippedFile.setLastModified(f.lastModified());
+        }
+        return gzippedFile;
+    }
+
+    static final class GZO extends GZIPOutputStream {
+
+        public GZO(OutputStream out, int size) throws IOException {
+            super(out, size);
+            this.def.setLevel(Deflater.BEST_COMPRESSION);
+        }
+
+        public GZO(OutputStream out, int size, boolean syncFlush) throws IOException {
+            super(out, size, syncFlush);
+            this.def.setLevel(Deflater.BEST_COMPRESSION);
+        }
     }
 
     static final class FileWriter implements ChannelFutureListener {
@@ -283,19 +395,25 @@ public class GetActeur extends Acteur {
         private final File file;
         private final Logger logger;
         private final Config config;
+        private final ApplicationControl ctrl;
 
-        FileWriter(File file, Logger logger, Config config) {
+        FileWriter(File file, Logger logger, Config config, ApplicationControl ctrl) {
             this.file = file;
             this.logger = logger;
             this.config = config;
+            this.ctrl = ctrl;
         }
 
         @Override
         public void operationComplete(ChannelFuture f) throws Exception {
-            if (f.isSuccess()) {
+            if (!f.isDone() || f.isSuccess()) {
                 config.debugLog("Send file region for ", file);
                 FileRegion region = new DefaultFileRegion(file, 0, file.length());
-                f.channel().writeAndFlush(region).addListener(CLOSE);
+                ctrl.logFailure(f.channel().writeAndFlush(region)).addListener((ChannelFuture f1) -> {
+                    if (!f1.isDone() || f1.isSuccess()) {
+                        ctrl.logFailure(f1.channel().writeAndFlush(DefaultLastHttpContent.EMPTY_LAST_CONTENT));
+                    }
+                });
             } else if (f.channel().isOpen()) {
                 f.channel().close();
                 if (f.cause() != null) {
@@ -304,23 +422,44 @@ public class GetActeur extends Acteur {
             }
         }
 
+        public String toString() {
+            return "FileWriter-" + file.getName();
+        }
     }
 
-    static class Responder extends ResponseWriter {
+    static class Responder2 implements ChannelFutureListener {
 
         private final ByteBuf buf;
         private final Config config;
+        private final boolean chunked;
+        private final ApplicationControl ctrl;
 
-        public Responder(ByteBuf buf, Config config) {
+        public Responder2(ByteBuf buf, Config config, boolean chunked, ApplicationControl ctrl) {
             this.buf = buf;
             this.config = config;
+            this.chunked = chunked;
+            this.ctrl = ctrl;
+        }
+
+        public String toString() {
+            return "Responder2 " + buf.toString(UTF_8);
         }
 
         @Override
-        public Status write(Event<?> evt, Output out, int iteration) throws Exception {
-            config.debugLog("use response writer with ", buf.readableBytes());
-            out.write(buf);
-            return Status.DONE;
+        public void operationComplete(ChannelFuture future) throws Exception {
+            System.out.println(this + " chunked? " + chunked);
+            config.debugLog("use responder2 with ", buf.readableBytes());
+            if (future.isDone() && !future.isSuccess()) {
+                if (future.cause() != null) {
+                    future.cause().printStackTrace();
+                }
+                return;
+            }
+            if (chunked) {
+                ctrl.logFailure(future.channel().writeAndFlush(new DefaultLastHttpContent(buf.retain())));
+            } else {
+                ctrl.logFailure(future.channel().writeAndFlush(buf.retain()));
+            }
         }
     }
 

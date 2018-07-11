@@ -5,7 +5,6 @@ import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.mastfrog.giulius.Dependencies;
-import com.mastfrog.guicy.annotations.Namespace;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import java.io.File;
@@ -55,7 +54,7 @@ public class Main extends AbstractModule {
                 .parseCommandLineArguments(args)
                 .build();
         Dependencies deps = Dependencies.builder()
-                .add(settings, Namespace.DEFAULT)
+                .add(settings, SettingsBuilder.DEFAULT_NAMESPACE)
                 .add(new Main())
                 .build();
         RepositoryIndexer indexer = deps.getInstance(RepositoryIndexer.class);

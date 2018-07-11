@@ -29,6 +29,7 @@ import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import com.google.inject.name.Names;
 import com.mastfrog.acteur.Acteur;
 import com.mastfrog.acteur.annotations.HttpCall;
 import com.mastfrog.acteur.bunyan.ActeurBunyanModule;
@@ -47,6 +48,7 @@ import static com.mastfrog.acteur.server.ServerModule.EVENT_THREADS;
 import static com.mastfrog.acteur.server.ServerModule.MAX_CONTENT_LENGTH;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
 import static com.mastfrog.acteur.server.ServerModule.WORKER_THREADS;
+import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.acteur.util.ServerControl;
 import com.mastfrog.bunyan.Log;
 import com.mastfrog.bunyan.Logger;
@@ -61,13 +63,25 @@ import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import com.mastfrog.url.URL;
+import static com.mastfrog.util.Checks.notNull;
+import com.mastfrog.util.ConfigurationError;
+import com.mastfrog.util.Streams;
 import com.mastfrog.util.UniqueIDs;
 import com.mastfrog.util.strings.AlignedText;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelOption;
 import static io.netty.handler.codec.http.HttpResponseStatus.GONE;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.Base64;
 
 /**
  *
@@ -86,8 +100,8 @@ public class TinyMavenProxy extends AbstractModule {
     public static void main(String[] args) throws IOException, InterruptedException {
         Settings settings = new SettingsBuilder(APPLICATION_NAME)
                 .add("application.name", APPLICATION_NAME)
+                .add("cors.enabled", false)
                 .add(HTTP_COMPRESSION, "false")
-                .add("neverKeepAlive", "true")
                 .add(SETTINGS_KEY_DOWNLOAD_THREADS, "24")
                 .add(SETTINGS_KEY_ASYNC_LOGGING, false)
                 .add(LoggingModule.SETTINGS_KEY_LOG_TO_CONSOLE, false)
@@ -105,8 +119,9 @@ public class TinyMavenProxy extends AbstractModule {
                 .add(new TinyMavenProxy())
                 .add(new ActeurBunyanModule(true)
                         .bindLogger(DOWNLOAD_LOGGER).bindLogger("startup")
-//                        .useProbe(false)
+                //                        .useProbe(false)
                 )
+                .disableCORS()
                 .enableOnlyBindingsFor(BOOLEAN, INT, STRING)
                 .add(settings)
                 .build().start();
@@ -119,6 +134,35 @@ public class TinyMavenProxy extends AbstractModule {
         bind(HttpClient.class).toProvider(HttpClientProvider.class);
         bind(StartupLogger.class).asEagerSingleton();
         bind(UniqueIDs.class).toProvider(UniqueIDsProvider.class).in(Scopes.SINGLETON);
+        bind(ByteBuf.class).annotatedWith(Names.named("index")).toProvider(IndexPageProvider.class);
+        bind(String.class).annotatedWith(Names.named("indexHash")).toProvider(IndexPageHashProvider.class);
+    }
+
+    @Singleton
+    static final class IndexPageData {
+
+        final ByteBuf buf;
+        final String hash;
+
+        @Inject
+        IndexPageData(ByteBufAllocator alloc) throws IOException, NoSuchAlgorithmException {
+            byte[] bytes;
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream();) {
+                try (InputStream in = Browse.IndexPageWriter.class.getResourceAsStream("index.html")) {
+                    if (in == null) {
+                        throw new ConfigurationError("index.html missing from classpath.");
+                    }
+                    Streams.copy(in, out);
+                }
+                bytes = out.toByteArray();
+            }
+            ByteBuf buf = alloc.ioBuffer(bytes.length, bytes.length);
+            buf.writeBytes(bytes);
+            buf.retain();
+            this.buf = Unpooled.unreleasableBuffer(buf);
+            byte[] digest = MessageDigest.getInstance("SHA-1").digest(bytes);
+            this.hash = Base64.getEncoder().encodeToString(digest);
+        }
     }
 
     public static final String SETTINGS_KEY_UIDS_FILE = "uids.base";
@@ -158,6 +202,39 @@ public class TinyMavenProxy extends AbstractModule {
         }
     }
 
+    @Singleton
+    static final class IndexPageProvider implements Provider<ByteBuf> {
+
+        private final IndexPageData data;
+
+        @Inject
+        IndexPageProvider(IndexPageData data) throws IOException {
+            this.data = data;
+        }
+
+        @Override
+        public ByteBuf get() {
+            return data.buf.duplicate();
+        }
+    }
+
+    @Singleton
+    static final class IndexPageHashProvider implements Provider<String> {
+
+        private final IndexPageData data;
+
+        @Inject
+        IndexPageHashProvider(IndexPageData data) throws IOException {
+            this.data = data;
+            notNull("hash", data.hash);
+        }
+
+        @Override
+        public String get() {
+            return data.hash;
+        }
+    }
+
     @HttpCall(order = Integer.MIN_VALUE)
     @PathRegex({"^favicon.ico$", "^.index.*"})
     @Methods({GET, HEAD})
@@ -166,9 +243,9 @@ public class TinyMavenProxy extends AbstractModule {
 
         @Inject
         FaviconPage() {
-            add(Headers.CONTENT_LENGTH, 0);
-//            add(Headers.stringHeader("X-Internal-Compress"), "true");
-            reply(GONE);
+            add(Headers.CACHE_CONTROL, CacheControl.PUBLIC_MUST_REVALIDATE_MAX_AGE_1_DAY);
+            add(Headers.EXPIRES, ZonedDateTime.now().plus(Duration.ofDays(1)));
+            reply(GONE, "Does not exist\n");
         }
     }
 
