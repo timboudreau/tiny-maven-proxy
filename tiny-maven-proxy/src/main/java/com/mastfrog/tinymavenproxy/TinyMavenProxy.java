@@ -63,10 +63,10 @@ import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import com.mastfrog.url.URL;
-import static com.mastfrog.util.Checks.notNull;
-import com.mastfrog.util.ConfigurationError;
-import com.mastfrog.util.Streams;
-import com.mastfrog.util.UniqueIDs;
+import static com.mastfrog.util.preconditions.Checks.notNull;
+import com.mastfrog.util.preconditions.ConfigurationError;
+import com.mastfrog.util.streams.Streams;
+import com.mastfrog.util.strings.UniqueIDs;
 import com.mastfrog.util.strings.AlignedText;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -236,7 +236,7 @@ public class TinyMavenProxy extends AbstractModule {
     }
 
     @HttpCall(order = Integer.MIN_VALUE)
-    @PathRegex({"^favicon.ico$", "^.index.*"})
+    @PathRegex({"^favicon.ico$"})
     @Methods({GET, HEAD})
     @Description("Sends 404 for /favicon.ico")
     static class FaviconPage extends Acteur {
@@ -261,6 +261,7 @@ public class TinyMavenProxy extends AbstractModule {
                     .useCompression()
                     .setUserAgent("tiny-maven-proxy-1.6")
                     .setChannelOption(ChannelOption.ALLOCATOR, alloc)
+                    .setChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                     .threadCount(downloadThreads)
                     .maxChunkSize(16384).build();
         }

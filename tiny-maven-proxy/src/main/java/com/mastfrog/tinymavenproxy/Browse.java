@@ -41,7 +41,7 @@ import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.server.PathFactory;
 import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.url.Path;
-import com.mastfrog.util.Strings;
+import com.mastfrog.util.strings.Strings;
 import com.mastfrog.util.collections.MapBuilder;
 import com.mastfrog.util.time.TimeUtil;
 import static com.mastfrog.util.time.TimeUtil.GMT;
@@ -109,11 +109,13 @@ public class Browse extends Acteur {
             String name = file.getName();
             if ("index.html".equals(name) || ".index".equals(name)) {
                 continue;
-            }
-            if (name.charAt(0) == '-' && name.endsWith(".gz")) {
+            } else if (name.charAt(0) == '_') {
                 // Gzipped cache files
                 continue;
+            } else if ("maven-metadata-local.xml".equals(name)) {
+                continue;
             }
+
 
             MapBuilder mb1 = new MapBuilder(digest);
             mb1.put("name", file.getName());

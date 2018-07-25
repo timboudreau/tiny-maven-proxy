@@ -115,7 +115,7 @@
                                     $controllerProvider.allowGlobals();
                                 }]);
                             function ProxyController($scope, $http, $location, $rootScope) {
-                                $scope.path = $location.path() || '/';
+                                $scope.path = $location.path() || '.';
                                 $scope.error = 'Loading...';
                                 $scope.load = function () {
                                     var u = $scope.path + '?browse=true';
@@ -132,13 +132,13 @@
 
                                 $scope.$on('$locationChangeSuccess', function (event, newUrl, oldUrl) {
                                     var pth = newUrl.split('#')[1];
-                                    $scope.path = pth || '/';
+                                    $scope.path = pth || window.location.pathname;
                                     $scope.load();
                                 });
 
                                 $scope.browse = function (fld) {
                                     if (fld.file) {
-                                        window.location = $scope.path + '/' + fld.name;
+                                        window.location = $scope.path + fld.name;
                                     } else {
                                         $scope.path += fld.name + '/';
                                         $location.path($scope.path);

@@ -26,8 +26,9 @@ package com.mastfrog.tinymavenproxy;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.server.ServerModule;
+import static com.mastfrog.tinymavenproxy.GetActeur.isGzipCacheFile;
 import com.mastfrog.url.Path;
-import com.mastfrog.util.Streams;
+import com.mastfrog.util.streams.Streams;
 import com.mastfrog.util.time.TimeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -85,12 +86,15 @@ public class FileFinder {
             throw new IOException("Could not create dirs " + target.getParent());
         }
 
-        File gzipped = GetActeur.gzip(file);
+        // It is possible to download such a file from a remote instance of tiny-maven-proxy - 
+        // in which case, don't make another
+        if (!isGzipCacheFile(file)) {
+            File gzipped = GetActeur.gzip(file);
+            File gzippedDest = new File(target.getParentFile(), "_" + target.getName() + ".gz");
+            Files.move(gzipped.toPath(), gzippedDest.toPath());
+        }
 
         Files.move(file.toPath(), target.toPath());
-        
-        File gzippedDest = new File(target.getParentFile(), "-" + target.getName() + ".gz");
-        Files.move(gzipped.toPath(), gzippedDest.toPath());
 
 //        if (!file.renameTo(target)) {
 //            throw new ResponseException(INTERNAL_SERVER_ERROR, "Could not rename " + file + " to " + target);

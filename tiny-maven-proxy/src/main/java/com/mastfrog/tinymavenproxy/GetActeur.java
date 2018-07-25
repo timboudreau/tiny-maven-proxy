@@ -52,8 +52,8 @@ import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
 import com.mastfrog.url.Path;
-import com.mastfrog.util.Streams;
-import com.mastfrog.util.Strings;
+import com.mastfrog.util.streams.Streams;
+import com.mastfrog.util.strings.Strings;
 import com.mastfrog.util.time.TimeUtil;
 import static com.mastfrog.util.time.TimeUtil.GMT;
 import io.netty.buffer.ByteBuf;
@@ -325,7 +325,12 @@ public class GetActeur extends Acteur {
             resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
             return new FileWriter(f, logger, config, ctrl);
         } else {
-            File gzippedFile = new File(f.getParentFile(), "-" + f.getName() + ".gz");
+            if (isGzipCacheFile(f)) {
+                resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.IDENTITY);
+                resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+                return new FileWriter(f, logger, config, ctrl);
+            }
+            File gzippedFile = new File(f.getParentFile(), "_" + f.getName() + ".gz");
 
             if (!gzippedFile.exists()) {
                 int bufferSize = Math.max(2048, (int) f.length());
@@ -357,8 +362,12 @@ public class GetActeur extends Acteur {
         }
     }
 
+    static boolean isGzipCacheFile(File f) {
+        return f.getName().charAt(0) == '_' && f.getName().endsWith(".gz");
+    }
+
     static File gzip(File f) throws IOException {
-        File gzippedFile = new File(f.getParentFile(), "-" + f.getName() + ".gz");
+        File gzippedFile = new File(f.getParentFile(), "_" + f.getName() + ".gz");
 
         if (!gzippedFile.exists()) {
             int bufferSize = Math.max(2048, (int) f.length());

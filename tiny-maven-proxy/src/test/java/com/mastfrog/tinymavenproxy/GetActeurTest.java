@@ -23,9 +23,9 @@ import com.mastfrog.tiny.http.server.ResponseHead;
 import com.mastfrog.tiny.http.server.TinyHttpServer;
 import com.mastfrog.tinymavenproxy.GetActeurTest.M;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
-import com.mastfrog.util.Exceptions;
-import com.mastfrog.util.Streams;
-import com.mastfrog.util.Strings;
+import com.mastfrog.util.preconditions.Exceptions;
+import com.mastfrog.util.streams.Streams;
+import com.mastfrog.util.strings.Strings;
 import com.mastfrog.util.net.PortFinder;
 import com.mastfrog.util.thread.Receiver;
 import com.mastfrog.util.time.TimeUtil;
@@ -35,10 +35,14 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.util.CharsetUtil.UTF_8;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -51,6 +55,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import static org.junit.Assert.assertEquals;
@@ -92,6 +97,16 @@ public class GetActeurTest {
         File f = new File(mdir, "com/foo/bar.pom");
         assertTrue(f.exists());
         assertEquals("Hello /com/foo/bar.pom", Streams.readString(new FileInputStream(f)));
+
+        String es = harn.get("/error")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                .await()
+                .assertCode(404)
+                .content();
+
+        System.out.println("ERR MSG " + es);
 
         String s2 = harn.get("com/foo/bar.pom")
                 .setTimeout(timeout)
@@ -144,8 +159,10 @@ public class GetActeurTest {
                 .go()
                 .assertHasHeader(CONTENT_LENGTH)
                 .await()
-                .assertCode(200)
+                .assertCode(404)
                 .content();
+
+        System.out.println("ERROR CONTENT " + s4a);
 
         File f2 = new File(mdir, "com/foo/whoo.pom");
         assertTrue(f2.exists());
@@ -177,7 +194,7 @@ public class GetActeurTest {
                 .content(IndexEntry[].class);
         Arrays.sort(l);
         assertNotNull(l);
-        assertEquals(2, l.length);
+        assertEquals(Strings.join(',', Arrays.asList(l)), 2, l.length);
         System.out.println(Strings.join(',', l));
 
         assertEquals("bar.pom", l[0].name);
@@ -186,6 +203,18 @@ public class GetActeurTest {
         assertEquals(0, l[1].lastModified);
         assertTrue(l[0].file);
         assertTrue(l[1].file);
+
+        String fakeIndex = harn.get(".index", "nexus-maven-repository-index.properties")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                .await()
+                .assertStatus(OK)
+                .content();
+        Properties p = new Properties();
+        p.load(new ByteArrayInputStream(fakeIndex.getBytes(UTF_8)));
+        assertEquals("bar", p.get("foo"));
+        assertEquals("world", p.get("hello"));
     }
 
     static final class IndexEntry implements Comparable<IndexEntry> {
@@ -217,6 +246,8 @@ public class GetActeurTest {
         @Override
         protected void configure() {
             File dir = Files.createTempDir();
+            File indexDir = new File(dir, ".index");
+            indexDir.mkdirs();
             int port = new PortFinder().findAvailableServerPort();
 //            bind(HttpClient.class).toInstance(HttpClient.builder().noCompression().dontFollowRedirects().build());
             bind(Integer.class).annotatedWith(Names.named("tsport")).toInstance(port);
@@ -227,6 +258,13 @@ public class GetActeurTest {
             bind(Integer.class).annotatedWith(Names.named("download.threads")).toInstance(3);
             bind(String.class).annotatedWith(Names.named("maven.dir")).toInstance(dir.getAbsolutePath());
             try {
+                Properties p = new Properties();
+                p.setProperty("hello", "world");
+                p.setProperty("foo", "bar");
+                File f = new File(indexDir, "nexus-maven-repository-index.properties");
+                try (FileOutputStream os = new FileOutputStream(f)) {
+                    p.store(os, "test-file");
+                }
                 Settings settings = Settings.builder()
                         .add(Config.SETTINGS_KEY_MIRROR_URLS, "http://localhost:" + port)
                         .add(Config.MAVEN_CACHE_DIR, dir.getAbsolutePath())
@@ -255,6 +293,11 @@ public class GetActeurTest {
                 System.out.println("RETURN NULL");
                 response.status(HttpResponseStatus.NOT_FOUND);
                 return null;
+            }
+            if ("/error".equals(req.uri())) {
+                response.status(INTERNAL_SERVER_ERROR);
+                System.out.println("Sending error response");
+                return "Uh oh, something went wrong.";
             }
             System.out.println("TM REQUEST " + req.uri() + " " + req.headers());
             response.header(HttpHeaderNames.CONTENT_TYPE).set("text/plain; charset=UTF-8");

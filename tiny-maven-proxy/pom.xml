@@ -23,6 +23,18 @@
         </dependency>
         <dependency>
             <groupId>com.mastfrog</groupId>
+            <artifactId>util-misc</artifactId>
+            <version>${mastfrog.version}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-function</artifactId>
+            <version>${mastfrog.version}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
             <artifactId>acteur-bunyan</artifactId>
             <version>${mastfrog.version}</version>
             <type>jar</type>
@@ -162,16 +174,14 @@
                     <exclude>
                         com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
-                        com.mastfrog.util.multivariate
                         com.google.common.eventbus
                         com.google.common.graph
                         com.google.common.annotations
                         com.google.common.escape
                         com.google.common.io
-                        com.mastfrog.giulius.annotations.processors
+                        com.mastfrog.giulius.annotation.processors
                         com.mastfrog.parameters.processor
                         com.mastfrog.util.perf
-                        com.mastfrog.util.search
                         org.openide.xml
                         META-INF.maven
                         .netbeans_automatic_build
@@ -206,6 +216,11 @@
                         <annotationProcessorPath>
                             <groupId>${project.groupId}</groupId>
                             <artifactId>injection-reflection-indexer</artifactId>
+                            <version>${mastfrog.version}</version>
+                        </annotationProcessorPath>
+                        <annotationProcessorPath>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>util-fileformat</artifactId>
                             <version>${mastfrog.version}</version>
                         </annotationProcessorPath>
                         <annotationProcessorPath>

@@ -79,6 +79,25 @@ It does no authentication, validation, checksum checking (but your Maven client
 will, so you'll get the same result as if you'd downloaded things directly).
 
 
+Indexing
+--------
+
+IDEs and other tools will try to download a Nexus-style maven index.  A companion
+project next to this makes it simple to automate index generation.  It embeds the
+nexus-cli tool in a single fat-jar and runs it appropriately.
+
+Since plexus depends on a version of Guice from the dawn of time, we cannot embed
+the indexer directly in tiny-maven-proxy.  However, it is trivial to set up as a
+cron job.  Here is an example crontab:
+
+```
+@hourly /usr/bin/java -jar /opt/tiny-maven-proxy/tiny-maven-indexer.jar --repositoryId dr.timboudreau.org --repositoryDir /space/maven/repository
+```
+
+To build it, simply build the companion project with `mvn install`, copy `tiny-maven-indexer.jar` to
+wherever you need it, and set it up to run periodically _as the same user tiny-maven-proxy runs as_ on the
+target server.
+
 Logging
 -------
 
@@ -93,7 +112,6 @@ To-Dos
 ------
 
  * Clean out `-SNAPSHOT` dependencies periodically
- * Nexus-style indexing - this is started in the project next to it, but the Nexus index format does not seem to be documented
 
 
 Under The Hood
@@ -105,6 +123,7 @@ On a request for a non-cached file, it simultaneously attempts downloads from al
 servers it knows about, and when one succeeds, cancels the others.
 
 Command-line and configuration file management is done [with giulius](https://github.com/timboudreau/giulius).
+
 
 Footprint
 ---------
