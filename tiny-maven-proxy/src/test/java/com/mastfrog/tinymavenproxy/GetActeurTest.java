@@ -159,10 +159,10 @@ public class GetActeurTest {
                 .go()
                 .assertHasHeader(CONTENT_LENGTH)
                 .await()
-                .assertCode(404)
+                .assertCode(200)
                 .content();
 
-        System.out.println("ERROR CONTENT " + s4a);
+//        System.out.println("ERROR CONTENT " + s4a);
 
         File f2 = new File(mdir, "com/foo/whoo.pom");
         assertTrue(f2.exists());
@@ -195,7 +195,7 @@ public class GetActeurTest {
         Arrays.sort(l);
         assertNotNull(l);
         assertEquals(Strings.join(',', Arrays.asList(l)), 2, l.length);
-        System.out.println(Strings.join(',', l));
+        System.out.println(Strings.join(',', (Object[]) l));
 
         assertEquals("bar.pom", l[0].name);
         assertEquals("whoo.pom", l[1].name);

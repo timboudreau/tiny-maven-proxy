@@ -20,6 +20,16 @@
             <version>2.5.0-dev</version>
         </dependency>
         <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-strings</artifactId>
+            <version>2.5.0-dev</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-streams</artifactId>
+            <version>2.5.0-dev</version>
+        </dependency>
+        <dependency>
             <groupId>org.sonatype.nexus</groupId>
             <artifactId>nexus-indexer</artifactId>
             <version>3.0.4</version>
@@ -56,10 +66,6 @@
                     <exclude>
                         com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
-                        com.mastfrog.util.function
-                        com.mastfrog.util.net
-                        com.mastfrog.util.streams
-                        com.mastfrog.util.thread
                         com.google.common.eventbus
                         com.google.common.graph
                         com.google.common.annotations

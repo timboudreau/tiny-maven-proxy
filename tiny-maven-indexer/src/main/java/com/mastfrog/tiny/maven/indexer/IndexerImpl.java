@@ -11,7 +11,7 @@ import static com.mastfrog.tiny.maven.indexer.Main.SETTINGS_KEY_INDEX_DIR;
 import static com.mastfrog.tiny.maven.indexer.Main.SETTINGS_KEY_REPOSITORY_BASE_DIR;
 import static com.mastfrog.tiny.maven.indexer.Main.SETTINGS_KEY_REPOSITORY_ID;
 import com.mastfrog.util.preconditions.ConfigurationError;
-import com.mastfrog.util.Strings;
+import com.mastfrog.util.strings.Strings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
