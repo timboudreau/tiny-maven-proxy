@@ -31,6 +31,7 @@ import com.mastfrog.acteur.annotations.HttpCall;
 import com.mastfrog.acteur.headers.Headers;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
+import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.server.PathFactory;
 import com.mastfrog.acteur.util.CacheControl;
@@ -60,6 +61,7 @@ import java.util.Map;
  */
 @HttpCall(order = Integer.MAX_VALUE)
 @Methods({GET, HEAD})
+@Description(category = "Download", value = "Serves directory listings and the HTML index page")
 public class Browse extends Acteur {
 
     @Inject

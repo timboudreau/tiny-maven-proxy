@@ -15,6 +15,7 @@ import com.mastfrog.acteur.errors.Err;
 import com.mastfrog.acteur.headers.Headers;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
+import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.preconditions.PathRegex;
 import com.mastfrog.acteur.util.CacheControl;
@@ -38,6 +39,7 @@ import javax.inject.Inject;
 @Methods({GET, HEAD})
 @PathRegex("^.index\\/[^\\/].*$")
 @Precursors({FindIndexFile.class, CheckIfModifiedSinceHeader.class})
+@Description(category = "Download", value = "Fetch the index for this repository")
 public class GetIndex extends Acteur implements ChannelFutureListener {
 
     private final File target;
