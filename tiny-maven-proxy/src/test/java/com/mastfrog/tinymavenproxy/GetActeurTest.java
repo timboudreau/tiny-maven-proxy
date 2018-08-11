@@ -23,17 +23,20 @@ import com.mastfrog.tiny.http.server.ResponseHead;
 import com.mastfrog.tiny.http.server.TinyHttpServer;
 import com.mastfrog.tinymavenproxy.GetActeurTest.M;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
-import com.mastfrog.util.Exceptions;
-import com.mastfrog.util.Streams;
-import com.mastfrog.util.Strings;
+import com.mastfrog.util.preconditions.Exceptions;
+import com.mastfrog.util.streams.Streams;
+import com.mastfrog.util.strings.Strings;
 import com.mastfrog.util.net.PortFinder;
 import com.mastfrog.util.thread.Receiver;
 import com.mastfrog.util.time.TimeUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.util.CharsetUtil.UTF_8;
 import java.io.ByteArrayInputStream;
@@ -41,6 +44,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Path;
 import java.security.cert.CertificateException;
@@ -71,7 +75,7 @@ public class GetActeurTest {
     Duration timeout = Duration.ofSeconds(10);
 
     @Test
-    public void testSomeMethod(TestHarness harn, @Named("mdir") File mdir) throws UnsupportedEncodingException, InterruptedException, Throwable {
+    public void testSomeMethod(TestHarness harn, @Named("mdir") File mdir, @Named("fakePom") String fakePom) throws UnsupportedEncodingException, InterruptedException, Throwable {
 
         String s = harn.get("com/foo/bar.pom")
                 .addHeader(Headers.ACCEPT_ENCODING, "identity")
@@ -94,7 +98,62 @@ public class GetActeurTest {
         assertTrue(f.exists());
         assertEquals("Hello /com/foo/bar.pom", Streams.readString(new FileInputStream(f)));
 
+        String es = harn.get("/error")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                .await()
+                .assertCode(404)
+                .content();
+
+        System.out.println("ERR MSG " + es);
+
         String s2 = harn.get("com/foo/bar.pom")
+                .setTimeout(timeout)
+                .log()
+                .go()
+                //                .assertHasHeader(CONTENT_LENGTH)
+                .await()
+                .assertCode(200)
+                .content();
+
+        assertEquals("Hello /com/foo/bar.pom", s2);
+
+        String s3a = harn.get("/com/test/foo/1.0/fakepom.xml")
+                .addHeader(Headers.ACCEPT_ENCODING, "identity")
+                .setTimeout(timeout)
+                .log()
+                .on(State.HeadersReceived.class, new Receiver<HttpResponse>() {
+                    @Override
+                    public void receive(HttpResponse t) {
+                        System.out.println("identity GOT HEADERS \n" + t.headers());
+                    }
+                })
+                .go()
+                .await()
+                .assertCode(200)
+                .assertHeader(Headers.CONTENT_ENCODING, "identity")
+                .assertContent(fakePom)
+                .content();
+
+        String s3 = harn.get("/com/test/foo/1.0/fakepom.xml")
+                .addHeader(Headers.ACCEPT_ENCODING, HttpHeaderValues.GZIP_DEFLATE)
+                .setTimeout(timeout)
+                .log()
+                .on(State.HeadersReceived.class, new Receiver<HttpResponse>() {
+                    @Override
+                    public void receive(HttpResponse t) {
+                        System.out.println("gzip GOT HEADERS \n" + t.headers());
+                    }
+                })
+                .go()
+                .await()
+                .assertCode(200)
+                //                .assertHeader(Headers.CONTENT_ENCODING, "gzip")
+                .assertContent(fakePom)
+                .content();
+
+        String s4a = harn.get("com/foo/whoo.pom")
                 .setTimeout(timeout)
                 .log()
                 .go()
@@ -103,24 +162,7 @@ public class GetActeurTest {
                 .assertCode(200)
                 .content();
 
-        assertEquals("Hello /com/foo/bar.pom", s2);
-
-        String s3 = harn.get("com/foo/whoo.pom")
-                .addHeader(Headers.ACCEPT_ENCODING, "gzip")
-                .setTimeout(timeout)
-                .log()
-                .on(State.HeadersReceived.class, new Receiver<HttpResponse>() {
-                    @Override
-                    public void receive(HttpResponse t) {
-                        System.out.println("GOT HEADERS \n" + t.headers());
-                    }
-                })
-                .go()
-                .await()
-                .assertCode(200)
-                .content();
-
-        assertEquals("Hello /com/foo/whoo.pom", s3);
+//        System.out.println("ERROR CONTENT " + s4a);
 
         File f2 = new File(mdir, "com/foo/whoo.pom");
         assertTrue(f2.exists());
@@ -131,22 +173,18 @@ public class GetActeurTest {
                 .log()
                 .go()
                 .await()
-                .assertHasHeader(CONTENT_LENGTH)
-                .assertCode(200)
+                //                .assertHasHeader(CONTENT_LENGTH)
+                .assertStatus(OK)
                 .content();
 
         assertEquals("Hello /com/foo/whoo.pom", s4);
 
-        String nf = harn.get("nothing")
+        harn.get("nothing")
                 .setTimeout(timeout)
                 .log()
                 .go()
-                .await()
-                .assertCode(404)
-                .content();
-
-        System.out.println("NF: " + nf);
-
+                .assertStatus(NOT_FOUND);
+                
         IndexEntry[] l = harn.get("com/foo")
                 .setTimeout(timeout)
                 .log()
@@ -156,8 +194,8 @@ public class GetActeurTest {
                 .content(IndexEntry[].class);
         Arrays.sort(l);
         assertNotNull(l);
-        assertEquals(2, l.length);
-        System.out.println(Strings.join(',', l));
+        assertEquals(Strings.join(',', Arrays.asList(l)), 2, l.length);
+        System.out.println(Strings.join(',', (Object[]) l));
 
         assertEquals("bar.pom", l[0].name);
         assertEquals("whoo.pom", l[1].name);
@@ -180,6 +218,7 @@ public class GetActeurTest {
     }
 
     static final class IndexEntry implements Comparable<IndexEntry> {
+
         public String name;
         public long length;
         public boolean file;
@@ -196,6 +235,12 @@ public class GetActeurTest {
         }
     }
 
+    private static String fakePom() throws IOException {
+        InputStream in = GetActeurTest.class.getResourceAsStream("fakepom.txt");
+        assertNotNull("fakepom.txt missing from classpath", in);
+        return Streams.readString(in);
+    }
+
     static final class M extends AbstractModule {
 
         @Override
@@ -204,7 +249,6 @@ public class GetActeurTest {
             File indexDir = new File(dir, ".index");
             indexDir.mkdirs();
             int port = new PortFinder().findAvailableServerPort();
-            System.out.println("SERV PORT " + port);
 //            bind(HttpClient.class).toInstance(HttpClient.builder().noCompression().dontFollowRedirects().build());
             bind(Integer.class).annotatedWith(Names.named("tsport")).toInstance(port);
             bind(Responder.class).to(ResponderImpl.class);
@@ -227,6 +271,7 @@ public class GetActeurTest {
                         .build();
                 install(new GenericApplicationModule(settings));
                 bind(Config.class).toInstance(new Config(settings));
+                bind(String.class).annotatedWith(Names.named("fakePom")).toInstance(fakePom());
             } catch (IOException ex) {
                 Exceptions.chuck(ex);
             }
@@ -249,9 +294,18 @@ public class GetActeurTest {
                 response.status(HttpResponseStatus.NOT_FOUND);
                 return null;
             }
-            System.out.println("TM REQUEST " + req.headers());
+            if ("/error".equals(req.uri())) {
+                response.status(INTERNAL_SERVER_ERROR);
+                System.out.println("Sending error response");
+                return "Uh oh, something went wrong.";
+            }
+            System.out.println("TM REQUEST " + req.uri() + " " + req.headers());
             response.header(HttpHeaderNames.CONTENT_TYPE).set("text/plain; charset=UTF-8");
             response.header(HttpHeaderNames.LAST_MODIFIED).set(TimeUtil.toHttpHeaderFormat(TimeUtil.EPOCH.withZoneSameInstant(TimeUtil.GMT)));
+            if ("/com/test/foo/1.0/fakepom.xml".equals(req.uri())) {
+                System.out.println("SEND FAKE POM");
+                return fakePom();
+            }
             String uri = req.uri();
             String result = "Hello " + uri;
             return result;

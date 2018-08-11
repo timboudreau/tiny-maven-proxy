@@ -17,7 +17,17 @@
         <dependency>
             <groupId>com.mastfrog</groupId>
             <artifactId>giulius-settings</artifactId>
-            <version>2.4.0</version>
+            <version>2.5.0-dev</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-strings</artifactId>
+            <version>2.5.0-dev</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-streams</artifactId>
+            <version>2.5.0-dev</version>
         </dependency>
         <dependency>
             <groupId>org.sonatype.nexus</groupId>
@@ -36,7 +46,8 @@
                 <groupId>com.mastfrog</groupId>
                 <artifactId>maven-merge-configuration</artifactId>
                 <!-- Intentionally using an ancient version of this for compatibility -->
-                <version>1.6.0</version>
+                <!--<version>1.6.0</version>-->
+                <version>2.5.0-dev</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -55,10 +66,6 @@
                     <exclude>
                         com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
-                        com.mastfrog.util.function
-                        com.mastfrog.util.net
-                        com.mastfrog.util.streams
-                        com.mastfrog.util.thread
                         com.google.common.eventbus
                         com.google.common.graph
                         com.google.common.annotations

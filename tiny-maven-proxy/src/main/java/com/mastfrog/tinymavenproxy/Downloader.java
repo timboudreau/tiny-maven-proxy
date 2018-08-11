@@ -40,7 +40,7 @@ import com.mastfrog.netty.http.client.StateType;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
 import com.mastfrog.url.Path;
 import com.mastfrog.url.URL;
-import com.mastfrog.util.UniqueIDs;
+import com.mastfrog.util.strings.UniqueIDs;
 import com.mastfrog.util.thread.Receiver;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -150,6 +150,7 @@ public class Downloader {
                                     .addIfNotNull("server", headers.get("Server"))
                                     .add("id", id);
                         } catch (Exception e) {
+                            System.out.println("RECEIVER FAILED " + e);
                             receiver.failed(INTERNAL_SERVER_ERROR, e.getMessage() == null
                                     ? "Proxy failed to download item from any remote server" : e.getMessage());
                             return;

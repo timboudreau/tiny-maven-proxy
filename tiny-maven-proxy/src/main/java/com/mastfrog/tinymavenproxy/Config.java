@@ -32,8 +32,8 @@ import com.mastfrog.url.Path;
 import com.mastfrog.url.PathElement;
 import com.mastfrog.url.URL;
 import com.mastfrog.url.URLBuilder;
-import com.mastfrog.util.ConfigurationError;
-import com.mastfrog.util.Strings;
+import com.mastfrog.util.preconditions.ConfigurationError;
+import com.mastfrog.util.strings.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -55,7 +55,8 @@ public class Config implements Iterable<URL> {
     public static final String SETTINGS_KEY_CACHE_FAILED_PATHS_MINUTES = "failed.path.cache.minutes";
     public static final String SETTINGS_KEY_INDEX_DIR = "index.dir";
     private static final String DEFAULT_URLS="https://repo.maven.apache.org/maven2/"
-            + ",http://bits.netbeans.org/maven2/"
+            + ",http://bits.netbeans.org/nexus/content/groups/netbeans/"
+//            + ",http://bits.netbeans.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
             + ",https://timboudreau.com/maven/"
             + ",https://maven.java.net/content/groups/public/"
@@ -154,6 +155,10 @@ public class Config implements Iterable<URL> {
     @Override
     public Iterator<URL> iterator() {
         return Arrays.asList(urls).iterator();
+    }
+
+    public boolean isDebug() {
+        return debugLog;
     }
 
     void debugLog(String msg, Object... objs) {

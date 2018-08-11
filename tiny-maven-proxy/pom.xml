@@ -10,8 +10,26 @@
     <packaging>jar</packaging>
     <dependencies>
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>injection-reflection-indexer</artifactId>
+            <version>${mastfrog.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>com.mastfrog</groupId>
             <artifactId>acteur-headers</artifactId>
+            <version>${mastfrog.version}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-misc</artifactId>
+            <version>${mastfrog.version}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.mastfrog</groupId>
+            <artifactId>util-function</artifactId>
             <version>${mastfrog.version}</version>
             <type>jar</type>
         </dependency>
@@ -66,19 +84,19 @@
         <dependency>
             <groupId>com.mastfrog</groupId>
             <artifactId>giulius-tests</artifactId>
-            <version>2.3.2</version>
+            <version>${mastfrog.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.mastfrog</groupId>
             <artifactId>tiny-http-server</artifactId>
-            <version>2.3.2</version>
+            <version>${mastfrog.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.mastfrog</groupId>
             <artifactId>netty-http-test-harness</artifactId>
-            <version>2.3.2</version>
+            <version>${mastfrog.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -86,7 +104,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <mastfrog.version>2.3.2</mastfrog.version>
+        <mastfrog.version>2.5.0-dev</mastfrog.version>
+        <jackson.version>2.9.4</jackson.version>
     </properties>
     <pluginRepositories>
         <pluginRepository>
@@ -155,30 +174,14 @@
                     <exclude>
                         com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
-                        <!--
-                        io.netty.channel.oio
-                        io.netty.codec.http.multipart
-                        io.netty.codec.http.websocketx
-                        io.netty.codec.http.websocketx.extensions
-                        io.netty.codec.http.websocketx.extensions.compression
-                        io.netty.handler.codec.protobuf
-                        io.netty.handler.codec.rtsp
-                        io.netty.handler.codec.spdy
-                        io.netty.handler.codec.xml
-                        org.openide.util.spi
-                        org.openide.xml
-                        
-                        com.google.common.html
-                                                -->
                         com.google.common.eventbus
                         com.google.common.graph
                         com.google.common.annotations
                         com.google.common.escape
                         com.google.common.io
-                        com.mastfrog.giulius.annotations.processors
+                        com.mastfrog.giulius.annotation.processors
                         com.mastfrog.parameters.processor
                         com.mastfrog.util.perf
-                        com.mastfrog.util.search
                         org.openide.xml
                         META-INF.maven
                         .netbeans_automatic_build
@@ -186,13 +189,76 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
+                <version>3.7.0</version>
                 <configuration>
+                    <!--<fork>true</fork>-->
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <debug>true</debug>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <compilerArgument>${maven.compiler.argument}</compilerArgument>
+                    <compilerArgument>-Xlint:unchecked</compilerArgument>
+                    <compilerArgument>-Xdoclint:none</compilerArgument>
+                    <compilerArgument>-verbose</compilerArgument>
+                    <compilerArgument>-XprintRounds</compilerArgument>
+                    <compilerArgument>-XprintProcessorInfo</compilerArgument>
+                    <compilerArgument>-Xdiags:verbose</compilerArgument>
                     <showDeprecation>true</showDeprecation>
+                    <showWarnings>true</showWarnings>
+                    <!--<forceJavacCompilerUse>true</forceJavacCompilerUse>-->
+                    <annotationProcessorPaths>
+                        <annotationProcessorPath>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>annotation-processors</artifactId>
+                            <version>${mastfrog.version}</version>
+                        </annotationProcessorPath>
+                        <annotationProcessorPath>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>injection-reflection-indexer</artifactId>
+                            <version>${mastfrog.version}</version>
+                        </annotationProcessorPath>
+                        <annotationProcessorPath>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>util-fileformat</artifactId>
+                            <version>${mastfrog.version}</version>
+                        </annotationProcessorPath>
+                        <annotationProcessorPath>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>giulius-annotation-processors</artifactId>
+                            <version>${mastfrog.version}</version>
+                        </annotationProcessorPath>
+                        <annotationProcessorPath>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>acteur-annotation-processors</artifactId>
+                            <version>${mastfrog.version}</version>
+                        </annotationProcessorPath>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.0</version>
+                <configuration>
+                    <parallel>all</parallel>
+                    <parallelMavenExecution>true</parallelMavenExecution>
+                    <perCoreThreadCount>4</perCoreThreadCount>
+                    <threadCount>8</threadCount>
+                    <forkCount>6</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <trimStackTrace>false</trimStackTrace>
+                    <systemPropertyVariables>
+                        <acteur.debug>true</acteur.debug>
+                        <forkNumber>${surefire.forkNumber}</forkNumber>
+                        <maven.proxy.debug>true</maven.proxy.debug>
+                        <!--<io.netty.leakDetection.level>advanced</io.netty.leakDetection.level>-->
+                        <system.exit.on.bind.failure>false</system.exit.on.bind.failure>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            
+            
         </plugins>
     </build>
 </project>
