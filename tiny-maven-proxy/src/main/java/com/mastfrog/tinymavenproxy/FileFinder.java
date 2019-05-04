@@ -61,7 +61,6 @@ public class FileFinder {
         if (f.exists() && f.isFile()) {
             return f;
         }
-        System.out.println("DID NOT FIND FILE " + path + " at " + f);
         return null;
     }
 

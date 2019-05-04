@@ -105,13 +105,13 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <mastfrog.version>2.5.0-dev</mastfrog.version>
-        <jackson.version>2.9.4</jackson.version>
+        <jackson.version>2.9.8</jackson.version>
     </properties>
     <pluginRepositories>
         <pluginRepository>
             <id>timboudreau-plugins</id>
             <name>timboudreau.com plugins</name>
-            <url>http://timboudreau.com/builds/plugin/repository/everything/</url>
+            <url>http://timboudreau.com/maven/</url>
             <releases>
                 <enabled>true</enabled>
                 <updatePolicy>never</updatePolicy>
@@ -126,7 +126,7 @@
         <repository>
             <id>timboudreau-builds</id>
             <name>timboudreau.com builds</name>
-            <url>http://timboudreau.com/builds/plugin/repository/everything/</url>
+            <url>http://timboudreau.com/maven/</url>
             <releases>
                 <enabled>true</enabled>
                 <updatePolicy>never</updatePolicy>
@@ -257,8 +257,23 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-            
-            
+            <plugin>
+                <groupId>com.mastfrog</groupId>
+                <artifactId>revision-info-plugin</artifactId>
+                <version>0.8</version>
+                <executions>
+                    <execution>
+                        <id>revision-info-plugin</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>revision-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <auto>true</auto>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

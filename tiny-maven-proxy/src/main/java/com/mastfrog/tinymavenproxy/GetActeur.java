@@ -456,7 +456,6 @@ public class GetActeur extends Acteur {
 
         @Override
         public void operationComplete(ChannelFuture future) throws Exception {
-            System.out.println(this + " chunked? " + chunked);
             config.debugLog("use responder2 with ", buf.readableBytes());
             if (future.isDone() && !future.isSuccess()) {
                 if (future.cause() != null) {

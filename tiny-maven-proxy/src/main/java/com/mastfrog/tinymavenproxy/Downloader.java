@@ -150,7 +150,6 @@ public class Downloader {
                                     .addIfNotNull("server", headers.get("Server"))
                                     .add("id", id);
                         } catch (Exception e) {
-                            System.out.println("RECEIVER FAILED " + e);
                             receiver.failed(INTERNAL_SERVER_ERROR, e.getMessage() == null
                                     ? "Proxy failed to download item from any remote server" : e.getMessage());
                             return;
