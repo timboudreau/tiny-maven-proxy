@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
@@ -7,37 +8,46 @@
         <version>1.7</version>
     </parent>
     <artifactId>tiny-maven-indexer</artifactId>
-    <packaging>jar</packaging>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>1.7</maven.compiler.source>
-        <maven.compiler.target>1.7</maven.compiler.target>
-    </properties>
+    <scm>
+        <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
+        <connection>scm:git:https://github.com:timboudreau/tiny-maven-proxy.git</connection>
+        <developerConnection>git@github.com:timboudreau/tiny-maven-proxy.git</developerConnection>
+    </scm>
+    <issueManagement>
+        <system>Github</system>
+        <url>https://github.com/timboudreau/tiny-maven-proxy/issues</url>
+    </issueManagement>
+    <organization>
+        <name>Mastfrog Technologies</name>
+        <url>https://mastfrog.com</url>
+    </organization>
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
     <dependencies>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>giulius-settings</artifactId>
-            <version>2.5.0-dev</version>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>util-strings</artifactId>
-            <version>2.5.0-dev</version>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>util-streams</artifactId>
-            <version>2.5.0-dev</version>
         </dependency>
         <dependency>
             <groupId>org.sonatype.nexus</groupId>
             <artifactId>nexus-indexer</artifactId>
-            <version>3.0.4</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-cli</artifactId>
-            <version>1.6</version>
         </dependency>
     </dependencies>
     <build>
@@ -45,9 +55,6 @@
             <plugin>
                 <groupId>com.mastfrog</groupId>
                 <artifactId>maven-merge-configuration</artifactId>
-                <!-- Intentionally using an ancient version of this for compatibility -->
-                <!--<version>1.6.0</version>-->
-                <version>2.5.0-dev</version>
                 <executions>
                     <execution>
                         <phase>package</phase>

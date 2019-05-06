@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
@@ -7,106 +8,94 @@
         <artifactId>tiny-maven-proxy-parent</artifactId>
     </parent>
     <artifactId>tiny-maven-proxy</artifactId>
-    <packaging>jar</packaging>
+    <scm>
+        <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
+        <connection>scm:git:https://github.com:timboudreau/tiny-maven-proxy.git</connection>
+        <developerConnection>git@github.com:timboudreau/tiny-maven-proxy.git</developerConnection>
+    </scm>
+    <issueManagement>
+        <system>Github</system>
+        <url>https://github.com/timboudreau/tiny-maven-proxy/issues</url>
+    </issueManagement>
+    <organization>
+        <name>Mastfrog Technologies</name>
+        <url>https://mastfrog.com</url>
+    </organization>
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>injection-reflection-indexer</artifactId>
-            <version>${mastfrog.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>acteur-headers</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>util-misc</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>util-function</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>acteur-bunyan</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>netty-http-client</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
-            <version>4.1.0</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>giulius</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>acteur</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>bunyan-java</artifactId>
-            <version>${mastfrog.version}</version>
-            <type>jar</type>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-core</artifactId>
-            <version>1.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>giulius-tests</artifactId>
-            <version>${mastfrog.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>tiny-http-server</artifactId>
-            <version>${mastfrog.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.mastfrog</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>netty-http-test-harness</artifactId>
-            <version>${mastfrog.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <mastfrog.version>2.5.0</mastfrog.version>
-        <jackson.version>2.9.8</jackson.version>
-    </properties>
     <pluginRepositories>
         <pluginRepository>
             <id>timboudreau-plugins</id>
@@ -122,40 +111,11 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
-    <repositories>
-        <repository>
-            <id>timboudreau-builds</id>
-            <name>timboudreau.com builds</name>
-            <url>http://timboudreau.com/maven/</url>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>netbeans</id>
-            <name>NetBeans</name>
-            <url>http://bits.netbeans.org/maven2/</url>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </snapshots>
-        </repository>
-    </repositories>
     <build>
         <plugins>
             <plugin>
                 <groupId>com.mastfrog</groupId>
                 <artifactId>maven-merge-configuration</artifactId>
-                <version>${mastfrog.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -190,7 +150,6 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.7.0</version>
                 <configuration>
                     <!--<fork>true</fork>-->
                     <source>1.8</source>
@@ -239,7 +198,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.0</version>
                 <configuration>
                     <parallel>all</parallel>
                     <parallelMavenExecution>true</parallelMavenExecution>
@@ -260,7 +218,6 @@
             <plugin>
                 <groupId>com.mastfrog</groupId>
                 <artifactId>revision-info-plugin</artifactId>
-                <version>0.8</version>
                 <executions>
                     <execution>
                         <id>revision-info-plugin</id>
