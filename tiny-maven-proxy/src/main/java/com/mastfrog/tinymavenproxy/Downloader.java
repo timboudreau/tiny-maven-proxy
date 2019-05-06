@@ -237,7 +237,7 @@ public class Downloader {
                                     break;
                                 case HeadersReceived:
                                     State.HeadersReceived hr = (State.HeadersReceived) t;
-                                    config.debugLog("Status " + u, hr.get().status());
+                                    config.debugLog("Status " + u, () -> new Object[] { hr.get().status() });
                                     if (hr.get().status().code() > 399) {
                                         impl.onFail(u, hr.get().status());
                                     }
@@ -249,16 +249,12 @@ public class Downloader {
 
             futures.put(u, f);
         }
-        return new ChannelFutureListener() {
-
-            @Override
-            public void operationComplete(ChannelFuture f) throws Exception {
-                int amt = remaining.get();
-                config.debugLog("Complete w/ remaining", amt);
-                if (amt > 0) {
-                    for (ResponseFuture fu : futures.values()) {
-                        fu.cancel();
-                    }
+        return (ChannelFuture f) -> {
+            int amt = remaining.get();
+            config.debugLog("Complete w/ remaining", amt);
+            if (amt > 0) {
+                for (ResponseFuture fu : futures.values()) {
+                    fu.cancel();
                 }
             }
         };

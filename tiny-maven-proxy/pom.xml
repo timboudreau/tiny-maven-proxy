@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
-        <version>1.6</version>
+        <version>1.7</version>
         <artifactId>tiny-maven-proxy-parent</artifactId>
     </parent>
     <artifactId>tiny-maven-proxy</artifactId>
@@ -104,7 +104,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <mastfrog.version>2.5.0-dev</mastfrog.version>
+        <mastfrog.version>2.5.0</mastfrog.version>
         <jackson.version>2.9.8</jackson.version>
     </properties>
     <pluginRepositories>
