@@ -164,6 +164,7 @@ public class Downloader {
             @Override
             public void onSuccess(URL u, ByteBuf buf, HttpResponseStatus status, HttpHeaders headers) {
                 config.debugLog("onSuccess b ", u);
+                buf.touch("downloader-onSuccess");
                 if (success.compareAndSet(false, true)) {
                     try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
@@ -231,6 +232,15 @@ public class Downloader {
                                     State.Error err = (State.Error) t;
                                     err.get().printStackTrace();
                                     impl.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                                    break;
+                                case ContentReceived :
+                                    HttpContent cnt = (HttpContent) t.get();
+                                    cnt.touch("RF.onEvent-ContentReceived");
+                                    cnt.release();
+                                    break;
+                                case FullContentReceived :
+                                    ByteBuf buf = (ByteBuf) t.get();
+                                    buf.touch("RF.onEvent-FullContentReceived");
                                     break;
                                 case Closed:
                                     impl.onFail(u, HttpResponseStatus.FORBIDDEN);
@@ -304,6 +314,7 @@ public class Downloader {
             try {
                 if (object instanceof FullHttpResponse) {
                     FullHttpResponse full = (FullHttpResponse) object;
+                    full.content().touch("RespHandler.receiveFullHttpResponse");
                     if (OK.equals(full.status())) {
                         ByteBuffer buffer = full.content().nioBuffer();
                         out.write(buffer);
@@ -338,6 +349,7 @@ public class Downloader {
                     }
                 } else if (tempfile != null && object instanceof HttpContent) {
                     HttpContent content = (HttpContent) object;
+                    content.touch("RespHandler.receiveHttpContent");
                     if (content.content().readableBytes() > 0) {
                         ByteBuffer buffer = content.content().nioBuffer();
                         out.write(buffer);

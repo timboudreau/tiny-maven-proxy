@@ -50,9 +50,11 @@ import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
 import com.mastfrog.util.file.FileUtils;
 import com.mastfrog.util.net.PortFinder;
 import com.mastfrog.util.preconditions.Exceptions;
+import com.mastfrog.util.streams.Streams;
 import com.mastfrog.util.strings.Strings;
 import com.mastfrog.util.thread.Receiver;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -61,11 +63,15 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import io.netty.util.ResourceLeakDetector;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -82,6 +88,10 @@ import org.junit.Test;
  */
 public class FailedDownloadsTest {
 
+    static {
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+    }
+
     private static ThrowingRunnable whenDone;
     private static final int SERVER_COUNT = 6;
     private static final PortFinder pf = new PortFinder();
@@ -91,35 +101,45 @@ public class FailedDownloadsTest {
     private static HttpClient client;
 
     @Test
-    public void test() throws InterruptedException {
-        request("commons-cli/commons-cli/1.0/commons-cli-1.0.pom");
-        request("log4j/log4j/1.2.14/log4j-1.2.14.jar");
-        request("log4j/log4j/1.2.14/log4j-1.2.14.jar");
-        request("com/mastfrog/bunyan/bunyan-java-2.5.0.jar");
+    public void test() throws InterruptedException, IOException {
+        request("commons-cli/commons-cli/1.0/commons-cli-1.0.pom", NOT_FOUND);
+        request("log4j/log4j/1.2.14/log4j-1.2.14.jar", NOT_FOUND);
+        request("log4j/log4j/1.2.14/log4j-1.2.14.jar", NOT_FOUND);
+        request("com/mastfrog/bunyan/bunyan-java-2.5.0.jar", NOT_FOUND);
     }
 
-//    @Test
+    @Test
+    public void testLeaks() throws InterruptedException, IOException {
+        for (int i = 0; i < 10; i++) {
+            request("/com/mastfrog/tiny-maven-proxy/1." + i
+                    + "/tiny-maven-proxy-1." + i + ".pom", OK);
+        }
+    }
+
+    @Test
     public void sanityCheckDummyServers() throws Throwable {
         for (ServerInfo si : infos) {
             executeRequest(client.get()
                     .addHeader(Headers.CONNECTION, Connection.close)
                     .setHost("127.0.0.1")
                     .setPort(si.httpPort)
-                    .setPath("commons-cli/commons-cli/1.0/commons-cli-1.0.pom"));
+                    .setPath("commons-cli/commons-cli/1.0/commons-cli-1.0.pom"), NOT_FOUND);
         }
     }
 
-    private void request(String path) throws InterruptedException {
+    private void request(String path, HttpResponseStatus expectedStatus) throws InterruptedException, IOException {
         executeRequest(client.get()
                 .setHost("127.0.0.1")
                 .setPort(serverPort)
-                .setPath(path));
+                .setPath(path), expectedStatus);
     }
 
-    private void executeRequest(HttpRequestBuilder b) throws InterruptedException {
-        class CH extends Receiver<Channel> implements ChannelFutureListener{
+    private void executeRequest(HttpRequestBuilder b, HttpResponseStatus expectedStatus) throws InterruptedException, IOException {
+        class CH extends Receiver<Channel> implements ChannelFutureListener {
+
             private final CountDownLatch latch = new CountDownLatch(1);
             private Channel channel;
+
             @Override
             public void receive(Channel object) {
                 channel = object;
@@ -139,11 +159,11 @@ public class FailedDownloadsTest {
         CH ch = new CH();
         b.on(State.Connected.class, ch);
 
-        St<HttpResponse> hr = new St<HttpResponse>("headersReceived");
+        St<HttpResponse> hr = new St<>("headersReceived");
         b.on(State.HeadersReceived.class, hr);
-        St<ByteBuf> fc = new St<ByteBuf>("fullContent");
+        St<ByteBuf> fc = new St<>("fullContent");
         b.on(State.FullContentReceived.class, fc);
-        St<FullHttpResponse> fc2 = new St<FullHttpResponse>("fullResponse");
+        St<FullHttpResponse> fc2 = new St<>("fullResponse");
         b.on(State.Finished.class, fc2);
         System.out.println("await finished");
         RH rh = new RH();
@@ -152,7 +172,13 @@ public class FailedDownloadsTest {
         assertNotNull("Headers not received", hr.obj);
         ch.await();
         fut.await();
-        assertEquals(HttpResponseStatus.NOT_FOUND, hr.obj.status());
+        assertEquals(expectedStatus, hr.obj.status());
+        if (OK.equals(expectedStatus)) {
+            assertNotNull(fc2.obj);
+            String content = Streams.readUTF8String(new ByteBufInputStream(fc2.obj.content()));
+            assertNotNull(content);
+            assertEquals("<xml>stuff here</xml>\n", content);
+        }
         checkThrown();
     }
 
@@ -272,7 +298,7 @@ public class FailedDownloadsTest {
         Server server = deps.getInstance(Server.class);
         client = HttpClient.builder()
                 .threadCount(5)
-//                .resolveAllHostsToLocalhost()
+                //                .resolveAllHostsToLocalhost()
                 .build();
         whenDone.andAlways(client::shutdown);
         server.start();
@@ -356,9 +382,21 @@ public class FailedDownloadsTest {
     static final class R implements Responder {
 
         Set<String> uris = new HashSet<>();
+        static final Random RND = new Random(120910932L);
 
         @Override
         public Object receive(HttpRequest req, ResponseHead response) throws Exception {
+            System.out.println("URI: " + req.uri());
+//            if ("/com/mastfrog/tiny-maven-proxy/1.7/tiny-maven-proxy-1.7.pom".equals(req.uri())) {
+            if (req.uri().startsWith("/com/mastfrog/tiny-maven-proxy")) {
+                // Stagger so some requests will be cancelled -
+                // We are trying to ensure Netty's leak detection will catch any
+                // buffers from cancelled requests whose reference count was
+                // never decremented to zero
+                Thread.sleep(RND.nextInt(100));
+                response.status(200);
+                return "<xml>stuff here</xml>\n";
+            }
             System.out.println("send not-found for " + req.uri());
             uris.add(req.uri());
             response.status(404);

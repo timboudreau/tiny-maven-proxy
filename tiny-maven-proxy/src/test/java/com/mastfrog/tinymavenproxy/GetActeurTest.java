@@ -63,6 +63,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.util.CharsetUtil.UTF_8;
+import io.netty.util.ResourceLeakDetector;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -99,9 +100,13 @@ public class GetActeurTest {
 
     Duration timeout = Duration.ofSeconds(10);
 
+    static {
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+    }
+
     @Test
-    public void testVersion(TestHarness harn) throws Throwable{
-        Map<String,Object> m = map("version").finallyTo(com.mastfrog.tinymavenproxy.RevisionInfo.VERSION);
+    public void testVersion(TestHarness harn) throws Throwable {
+        Map<String, Object> m = map("version").finallyTo(com.mastfrog.tinymavenproxy.RevisionInfo.VERSION);
         harn.get("_version")
                 .setTimeout(timeout)
                 .go()
@@ -198,7 +203,6 @@ public class GetActeurTest {
                 .content();
 
 //        System.out.println("ERROR CONTENT " + s4a);
-
         File f2 = new File(mdir, "com/foo/whoo.pom");
         assertTrue(f2.exists());
         assertEquals("Hello /com/foo/whoo.pom", Streams.readString(new FileInputStream(f2)));
@@ -219,7 +223,7 @@ public class GetActeurTest {
                 .log()
                 .go()
                 .assertStatus(NOT_FOUND);
-                
+
         IndexEntry[] l = harn.get("com/foo")
                 .setTimeout(timeout)
                 .log()
