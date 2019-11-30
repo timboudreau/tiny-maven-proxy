@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
-        <version>1.7</version>
+        <version>1.8</version>
         <artifactId>tiny-maven-proxy-parent</artifactId>
     </parent>
     <artifactId>tiny-maven-proxy</artifactId>
@@ -134,6 +134,15 @@
                     <exclude>
                         com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
+                        com.mastfrog.abstractions.list
+                        com.mastfrog.annotation.processor
+                        com.mastfrog.annotation.registries
+                        com.mastfrog.annotation.validation
+                        com.mastfrog.graal.injection.processor
+                        com.mastfrog.util.path
+                        com.mastfrog.java.vogon
+                        org.codehaus.mojo.animal_sniffer
+                        org.checkerframework
                         com.google.common.eventbus
                         com.google.common.graph
                         com.google.common.annotations

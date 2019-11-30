@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <version>1.7</version>
+    <version>1.8</version>
     <artifactId>tiny-maven-proxy-parent</artifactId>
     <scm>
         <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
@@ -137,8 +137,8 @@
     </dependencyManagement>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.9.8</jackson.version>
-        <mastfrog.version>2.5.1-dev</mastfrog.version>
+        <jackson.version>2.10.1</jackson.version>
+        <mastfrog.version>2.6.5</mastfrog.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
