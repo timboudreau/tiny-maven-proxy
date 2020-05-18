@@ -42,8 +42,8 @@ import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.server.PathFactory;
 import com.mastfrog.acteur.util.CacheControl;
 import com.mastfrog.url.Path;
+import static com.mastfrog.util.collections.CollectionUtils.map;
 import com.mastfrog.util.strings.Strings;
-import com.mastfrog.util.collections.MapBuilder;
 import com.mastfrog.util.time.TimeUtil;
 import static com.mastfrog.util.time.TimeUtil.GMT;
 import io.netty.buffer.ByteBuf;
@@ -118,18 +118,12 @@ public class Browse extends Acteur {
                 continue;
             }
 
-
-            MapBuilder mb1 = new MapBuilder(digest);
-            mb1.put("name", file.getName());
-            boolean isFile = file.isFile();
-            mb1.put("file", file.isFile());
-            if (isFile) {
-                mb1.put("length", file.length());
-            }
-            long lm = file.lastModified();
-            mb1.put("lastModified", lm);
-            newest = Math.max(lm, newest);
-            result.add(mb1.build());
+            long lastModified = file.lastModified();
+            newest = Math.max(lastModified, newest);
+            result.add(map("name").to(file.getName()).map("file").to(file.isFile())
+                    .maybeMap(file::isFile, mb -> {
+                        mb.map("length").to(file.length());
+                    }).map("lastModified").finallyTo(lastModified));
         }
         add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(newest, GMT));
         String etag = Base64.getEncoder().encodeToString(digest.digest());

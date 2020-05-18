@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  *
@@ -50,13 +51,14 @@ import java.util.Set;
  */
 @Singleton
 public class Config implements Iterable<URL> {
+
     public static final String SETTINGS_KEY_MIRROR_URLS = "mirror";
     public static final String MAVEN_CACHE_DIR = "maven.dir";
     public static final String SETTINGS_KEY_CACHE_FAILED_PATHS_MINUTES = "failed.path.cache.minutes";
     public static final String SETTINGS_KEY_INDEX_DIR = "index.dir";
-    private static final String DEFAULT_URLS="https://repo.maven.apache.org/maven2/"
+    private static final String DEFAULT_URLS = "https://repo.maven.apache.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/groups/netbeans/"
-//            + ",http://bits.netbeans.org/maven2/"
+            //            + ",http://bits.netbeans.org/maven2/"
             + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
             + ",https://timboudreau.com/maven/"
             + ",https://maven.java.net/content/groups/public/"
@@ -86,7 +88,7 @@ public class Config implements Iterable<URL> {
                 urls[i].getProblems().throwIfFatalPresent();
             }
         }
-        debugLog("START WITH URLS ", Strings.join(',', urls));
+        debugLog("START WITH URLS ", () -> new Object[]{Strings.commas(urls)});
         String dirname = s.getString(MAVEN_CACHE_DIR);
         if (dirname == null) {
             File tmp = new File(System.getProperty("java.io.tmpdir"));
@@ -161,12 +163,18 @@ public class Config implements Iterable<URL> {
         return debugLog;
     }
 
-    void debugLog(String msg, Object... objs) {
+    final void debugLog(String msg, Supplier<Object[]> lazy) {
+        if (debugLog) {
+            debugLog(msg, lazy.get());
+        }
+    }
+
+    final void debugLog(String msg, Object... objs) {
         if (debugLog) {
             StringBuilder sb = new StringBuilder(msg);
             for (int i = 0; i < objs.length; i++) {
                 sb.append(' ').append(objs[i]);
-                if (i != objs.length-1) {
+                if (i != objs.length - 1) {
                     sb.append(',');
                 }
             }

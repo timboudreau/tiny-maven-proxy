@@ -63,6 +63,7 @@ import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import com.mastfrog.url.URL;
+import com.mastfrog.util.libversion.VersionInfo;
 import static com.mastfrog.util.preconditions.Checks.notNull;
 import com.mastfrog.util.preconditions.ConfigurationError;
 import com.mastfrog.util.streams.Streams;
@@ -121,6 +122,11 @@ public class TinyMavenProxy extends AbstractModule {
                         .bindLogger(DOWNLOAD_LOGGER).bindLogger("startup")
                 //                        .useProbe(false)
                 )
+                .add(binder -> {
+                    binder.bind(VersionInfo.class)
+                            .toInstance(VersionInfo.find(TinyMavenProxy.class, "com.mastfrog", "tiny-maven-proxy"));
+
+                })
                 .disableCORS()
                 .enableOnlyBindingsFor(BOOLEAN, INT, STRING)
                 .add(settings)

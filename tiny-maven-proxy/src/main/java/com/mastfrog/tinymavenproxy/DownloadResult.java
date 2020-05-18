@@ -61,6 +61,20 @@ class DownloadResult {
         this.status = status;
     }
 
+    public String toString() {
+        StringBuilder sb = new StringBuilder(status.toString());
+        if (file != null) {
+            sb.append(" ").append(file.getPath());
+        }
+        if (headers != null) {
+            sb.append(" ").append(headers);
+        }
+        if (buf != null) {
+            sb.append(" bytes=").append(buf.readableBytes());
+        }
+        return sb.toString();
+    }
+
     boolean isFile() {
         return this.file != null;
     }

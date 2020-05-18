@@ -150,7 +150,6 @@ public class Downloader {
                                     .addIfNotNull("server", headers.get("Server"))
                                     .add("id", id);
                         } catch (Exception e) {
-                            System.out.println("RECEIVER FAILED " + e);
                             receiver.failed(INTERNAL_SERVER_ERROR, e.getMessage() == null
                                     ? "Proxy failed to download item from any remote server" : e.getMessage());
                             return;
@@ -165,6 +164,7 @@ public class Downloader {
             @Override
             public void onSuccess(URL u, ByteBuf buf, HttpResponseStatus status, HttpHeaders headers) {
                 config.debugLog("onSuccess b ", u);
+                buf.touch("downloader-onSuccess");
                 if (success.compareAndSet(false, true)) {
                     try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
@@ -233,12 +233,21 @@ public class Downloader {
                                     err.get().printStackTrace();
                                     impl.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
                                     break;
+                                case ContentReceived :
+                                    HttpContent cnt = (HttpContent) t.get();
+                                    cnt.touch("RF.onEvent-ContentReceived");
+                                    cnt.release();
+                                    break;
+                                case FullContentReceived :
+                                    ByteBuf buf = (ByteBuf) t.get();
+                                    buf.touch("RF.onEvent-FullContentReceived");
+                                    break;
                                 case Closed:
                                     impl.onFail(u, HttpResponseStatus.FORBIDDEN);
                                     break;
                                 case HeadersReceived:
                                     State.HeadersReceived hr = (State.HeadersReceived) t;
-                                    config.debugLog("Status " + u, hr.get().status());
+                                    config.debugLog("Status " + u, () -> new Object[] { hr.get().status() });
                                     if (hr.get().status().code() > 399) {
                                         impl.onFail(u, hr.get().status());
                                     }
@@ -250,16 +259,12 @@ public class Downloader {
 
             futures.put(u, f);
         }
-        return new ChannelFutureListener() {
-
-            @Override
-            public void operationComplete(ChannelFuture f) throws Exception {
-                int amt = remaining.get();
-                config.debugLog("Complete w/ remaining", amt);
-                if (amt > 0) {
-                    for (ResponseFuture fu : futures.values()) {
-                        fu.cancel();
-                    }
+        return (ChannelFuture f) -> {
+            int amt = remaining.get();
+            config.debugLog("Complete w/ remaining", amt);
+            if (amt > 0) {
+                for (ResponseFuture fu : futures.values()) {
+                    fu.cancel();
                 }
             }
         };
@@ -309,6 +314,7 @@ public class Downloader {
             try {
                 if (object instanceof FullHttpResponse) {
                     FullHttpResponse full = (FullHttpResponse) object;
+                    full.content().touch("RespHandler.receiveFullHttpResponse");
                     if (OK.equals(full.status())) {
                         ByteBuffer buffer = full.content().nioBuffer();
                         out.write(buffer);
@@ -343,6 +349,7 @@ public class Downloader {
                     }
                 } else if (tempfile != null && object instanceof HttpContent) {
                     HttpContent content = (HttpContent) object;
+                    content.touch("RespHandler.receiveHttpContent");
                     if (content.content().readableBytes() > 0) {
                         ByteBuffer buffer = content.content().nioBuffer();
                         out.write(buffer);

@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2015 Tim Boudreau.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.mastfrog.tinymavenproxy;
 
 import com.google.common.io.Files;
@@ -23,6 +46,7 @@ import com.mastfrog.tiny.http.server.ResponseHead;
 import com.mastfrog.tiny.http.server.TinyHttpServer;
 import com.mastfrog.tinymavenproxy.GetActeurTest.M;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
+import static com.mastfrog.util.collections.CollectionUtils.map;
 import com.mastfrog.util.preconditions.Exceptions;
 import com.mastfrog.util.streams.Streams;
 import com.mastfrog.util.strings.Strings;
@@ -39,6 +63,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.util.CharsetUtil.UTF_8;
+import io.netty.util.ResourceLeakDetector;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -55,6 +80,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
@@ -73,6 +99,20 @@ import org.junit.runner.RunWith;
 public class GetActeurTest {
 
     Duration timeout = Duration.ofSeconds(10);
+
+    static {
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+    }
+
+    @Test
+    public void testVersion(TestHarness harn) throws Throwable {
+        Map<String, Object> m = map("version").finallyTo(com.mastfrog.tinymavenproxy.RevisionInfo.VERSION);
+        harn.get("_version")
+                .setTimeout(timeout)
+                .go()
+                .assertCode(200)
+                .assertContent(Map.class, m);
+    }
 
     @Test
     public void testSomeMethod(TestHarness harn, @Named("mdir") File mdir, @Named("fakePom") String fakePom) throws UnsupportedEncodingException, InterruptedException, Throwable {
@@ -163,7 +203,6 @@ public class GetActeurTest {
                 .content();
 
 //        System.out.println("ERROR CONTENT " + s4a);
-
         File f2 = new File(mdir, "com/foo/whoo.pom");
         assertTrue(f2.exists());
         assertEquals("Hello /com/foo/whoo.pom", Streams.readString(new FileInputStream(f2)));
@@ -184,7 +223,7 @@ public class GetActeurTest {
                 .log()
                 .go()
                 .assertStatus(NOT_FOUND);
-                
+
         IndexEntry[] l = harn.get("com/foo")
                 .setTimeout(timeout)
                 .log()

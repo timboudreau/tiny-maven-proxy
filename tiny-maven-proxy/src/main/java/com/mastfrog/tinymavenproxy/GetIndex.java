@@ -51,7 +51,7 @@ public class GetIndex extends Acteur implements ChannelFutureListener {
         this.target = target;
         this.accessLog = accessLog;
         ok();
-        close = !evt.isKeepAlive();
+        close = !evt.requestsConnectionStayOpen();
         if (evt.method() != HEAD) {
             setResponseBodyWriter(this);
         }
