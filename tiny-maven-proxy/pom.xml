@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
-        <version>1.9</version>
+        <version>1.10</version>
         <artifactId>tiny-maven-proxy-parent</artifactId>
     </parent>
     <artifactId>tiny-maven-proxy</artifactId>
