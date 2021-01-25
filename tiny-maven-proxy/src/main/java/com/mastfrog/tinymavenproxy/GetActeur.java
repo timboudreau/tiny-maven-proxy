@@ -98,7 +98,7 @@ import java.util.zip.GZIPOutputStream;
 @HttpCall(order = Integer.MAX_VALUE - 1, scopeTypes = DownloadResult.class)
 @Concluders(ConcludeHttpRequest.class)
 @Methods({GET, HEAD})
-@Description("Download maven artifacts, fetching them from remote repositories "
+@Description(category = "Download", value = "Download maven artifacts, fetching them from remote repositories "
         + "and caching the results if necessary")
 public class GetActeur extends Acteur {
 

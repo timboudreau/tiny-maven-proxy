@@ -64,7 +64,8 @@ public class Config implements Iterable<URL> {
             + ",https://maven.java.net/content/groups/public/"
             + ",https://oss.sonatype.org/content/repositories/snapshots/"
             + ",https://oss.sonatype.org/content/repositories/releases/"
-            + ",https://oss.sonatype.org/";
+            + ",https://oss.sonatype.org/"
+            + ",https://maven.atlassian.com/3rdparty/";
 
     private final URL[] urls;
     public final File dir;
