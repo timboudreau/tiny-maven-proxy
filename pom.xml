@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <version>1.8</version>
+    <version>1.9</version>
     <artifactId>tiny-maven-proxy-parent</artifactId>
     <scm>
         <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
@@ -41,7 +41,7 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>acteur-bunyan</artifactId>
-                <version>${mastfrog.version}</version>
+                <version>2.6.13</version>
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
@@ -51,7 +51,7 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>bunyan-java</artifactId>
-                <version>${mastfrog.version}</version>
+                <version>2.6.13</version>
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
@@ -111,12 +111,12 @@
             <dependency>
                 <groupId>com.google.inject</groupId>
                 <artifactId>guice</artifactId>
-                <version>4.1.0</version>
+                <version>4.2.3</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>4.12</version>
+                <version>4.13.1</version>
             </dependency>
             <dependency>
                 <groupId>org.codehaus.plexus</groupId>
@@ -137,8 +137,8 @@
     </dependencyManagement>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.10.1</jackson.version>
-        <mastfrog.version>2.6.6</mastfrog.version>
+        <jackson.version>2.12.1</jackson.version>
+        <mastfrog.version>2.7.1</mastfrog.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>

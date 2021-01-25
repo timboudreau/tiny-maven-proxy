@@ -67,6 +67,7 @@ import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
@@ -190,6 +191,10 @@ public class GetActeur extends Acteur {
         }
         String ext = file.substring(ix + 1);
         switch (ext) {
+            case "gz":
+                return MediaType.GZIP;
+            case "properties":
+                return MediaType.parse("text/x-java-properties");
             case "html":
                 return MediaType.HTML_UTF_8;
             case "jar":
@@ -234,8 +239,8 @@ public class GetActeur extends Acteur {
 //                setResponseWriter(new Responder(res.buf, config));
                 setResponseBodyWriter(new Responder2(res.buf, config, true, ctrl));
             } else {
-//                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
-                reject();
+                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
+//                reject();
             }
         }
     }
