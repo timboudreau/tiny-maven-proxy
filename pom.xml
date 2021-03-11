@@ -137,8 +137,8 @@
     </dependencyManagement>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.12.1</jackson.version>
-        <mastfrog.version>2.7.1</mastfrog.version>
+        <jackson.version>2.12.2</jackson.version>
+        <mastfrog.version>2.7.2</mastfrog.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>

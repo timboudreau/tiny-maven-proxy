@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.mastfrog</groupId>
@@ -44,10 +44,19 @@
         <dependency>
             <groupId>org.sonatype.nexus</groupId>
             <artifactId>nexus-indexer</artifactId>
+            <version>3.1-M1</version>
         </dependency>
+        <dependency>
+            <groupId>org.sonatype.nexus.plugins</groupId>
+            <artifactId>nexus-indexer-lucene-plugin</artifactId>
+            <version>3.0.0-b2015020701</version>
+            <scope>provided</scope>
+        </dependency>
+        
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-cli</artifactId>
+            <version>1.6</version>
         </dependency>
     </dependencies>
     <build>
@@ -71,6 +80,8 @@
                     <normalizeMetaInfPropertiesFiles>true</normalizeMetaInfPropertiesFiles>
                     <skipLicenseFiles>true</skipLicenseFiles>
                     <exclude>
+                        org.junit
+                        org.hamcrest
                         com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
                         com.google.common.eventbus

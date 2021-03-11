@@ -45,10 +45,6 @@ public class IndexerImpl {
         System.out.println("INDEX " + repoPath + " to index " + indexPath + " for repo " + id);
     }
 
-    IndexerImpl(Settings settings) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
     void start() throws Exception {
         // export REPODIR=/path/to/your/local/repo/ && 
         // java org.sonatype.nexus.index.cli.NexusIndexerCli -r $REPODIR -i $REPODIR/.index -d $REPODIR/.index -n localrepo
@@ -57,7 +53,8 @@ public class IndexerImpl {
             "-r", repoPath.toString(),
             "-i", indexPath.toString(),
             "-d", indexPath.toString(),
-            "-n", id
+            "-n", id,
+            "--checksums", "sha1", "--type", "full"
         };
         System.out.println("WILL RUN " + Strings.join(' ', args));
         org.sonatype.nexus.index.cli.NexusIndexerCli.main(args);

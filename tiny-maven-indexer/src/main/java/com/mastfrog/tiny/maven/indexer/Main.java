@@ -7,6 +7,8 @@ import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import java.io.File;
 import java.io.IOException;
+import org.sonatype.nexus.index.DefaultNexusIndexer;
+import org.sonatype.nexus.index.NexusIndexer;
 
 /**
  *
@@ -44,6 +46,7 @@ public class Main extends AbstractModule {
 
     @Override
     protected void configure() {
+        bind(NexusIndexer.class).to(DefaultNexusIndexer.class);
         bind(IndexerImpl.class).asEagerSingleton();
         bind(Settings.class).toInstance(settings);
         for (String s : new String[]{SETTINGS_KEY_INDEX_DIR, SETTINGS_KEY_REPOSITORY_BASE_DIR, SETTINGS_KEY_REPOSITORY_ID}) {
