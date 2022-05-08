@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>com.mastfrog</groupId>
-        <version>1.10</version>
+        <version>1.11</version>
         <artifactId>tiny-maven-proxy-parent</artifactId>
     </parent>
     <artifactId>tiny-maven-proxy</artifactId>
+
     <scm>
         <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
         <connection>scm:git:https://github.com:timboudreau/tiny-maven-proxy.git</connection>
@@ -17,10 +21,12 @@
         <system>Github</system>
         <url>https://github.com/timboudreau/tiny-maven-proxy/issues</url>
     </issueManagement>
+
     <organization>
         <name>Mastfrog Technologies</name>
         <url>https://mastfrog.com</url>
     </organization>
+
     <licenses>
         <license>
             <name>MIT</name>
@@ -96,6 +102,7 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
     <pluginRepositories>
         <pluginRepository>
             <id>timboudreau-plugins</id>
@@ -111,6 +118,7 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
+
     <build>
         <plugins>
             <plugin>
@@ -131,8 +139,7 @@
                     <skipMavenMetadata>true</skipMavenMetadata>
                     <normalizeMetaInfPropertiesFiles>true</normalizeMetaInfPropertiesFiles>
                     <skipLicenseFiles>true</skipLicenseFiles>
-                    <exclude>
-                        com.mastfrog.tiny.http.server
+                    <exclude>com.mastfrog.tiny.http.server
                         com.mastfrog.util.search
                         com.mastfrog.abstractions.list
                         com.mastfrog.annotation.processor
@@ -153,14 +160,13 @@
                         com.mastfrog.util.perf
                         org.openide.xml
                         META-INF.maven
-                        .netbeans_automatic_build
-                    </exclude>
+                        .netbeans_automatic_build</exclude>
                 </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <!--<fork>true</fork>-->
+                    <!-- <fork>true</fork> -->
                     <source>1.8</source>
                     <target>1.8</target>
                     <debug>true</debug>
@@ -174,7 +180,7 @@
                     <compilerArgument>-Xdiags:verbose</compilerArgument>
                     <showDeprecation>true</showDeprecation>
                     <showWarnings>true</showWarnings>
-                    <!--<forceJavacCompilerUse>true</forceJavacCompilerUse>-->
+<!-- <forceJavacCompilerUse>true</forceJavacCompilerUse> -->
                     <annotationProcessorPaths>
                         <annotationProcessorPath>
                             <groupId>${project.groupId}</groupId>
@@ -219,7 +225,7 @@
                         <acteur.debug>true</acteur.debug>
                         <forkNumber>${surefire.forkNumber}</forkNumber>
                         <maven.proxy.debug>true</maven.proxy.debug>
-                        <!--<io.netty.leakDetection.level>advanced</io.netty.leakDetection.level>-->
+<!-- <io.netty.leakDetection.level>advanced</io.netty.leakDetection.level> -->
                         <system.exit.on.bind.failure>false</system.exit.on.bind.failure>
                     </systemPropertyVariables>
                 </configuration>
