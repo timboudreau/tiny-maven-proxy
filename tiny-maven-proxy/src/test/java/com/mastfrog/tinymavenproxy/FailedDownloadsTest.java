@@ -32,7 +32,7 @@ import com.mastfrog.acteur.bunyan.ActeurBunyanModule;
 import com.mastfrog.acteur.headers.Headers;
 import com.mastfrog.acteur.server.ServerLifecycleHook;
 import com.mastfrog.acteur.server.ServerModule;
-import com.mastfrog.acteur.util.Connection;
+import com.mastfrog.acteur.header.entities.Connection;
 import com.mastfrog.acteur.util.Server;
 import com.mastfrog.bunyan.LoggingModule;
 import com.mastfrog.function.throwing.ThrowingRunnable;

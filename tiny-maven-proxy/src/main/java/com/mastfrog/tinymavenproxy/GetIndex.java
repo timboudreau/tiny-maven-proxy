@@ -18,7 +18,7 @@ import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.preconditions.PathRegex;
-import com.mastfrog.acteur.util.CacheControl;
+import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.bunyan.Logger;
 import com.mastfrog.tinymavenproxy.GetIndex.FindIndexFile;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;

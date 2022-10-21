@@ -23,7 +23,6 @@
  */
 package com.mastfrog.tinymavenproxy;
 
-import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.Acteur;
@@ -42,12 +41,13 @@ import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import static com.mastfrog.acteur.server.ServerModule.X_INTERNAL_COMPRESS_HEADER;
 import com.mastfrog.acteur.spi.ApplicationControl;
-import com.mastfrog.acteur.util.CacheControl;
+import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
 import com.mastfrog.bunyan.Log;
 import com.mastfrog.bunyan.Logger;
+import com.mastfrog.mime.MimeType;
 import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
@@ -179,32 +179,33 @@ public class GetActeur extends Acteur {
     }
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("^\\d+\\.\\d+.*?");
+    private static final MimeType ANY_APPLICATION_TYPE = MimeType.create("application", "*");
 
-    private static MediaType findMimeType(Path path) {
+    private static MimeType findMimeType(Path path) {
         if (path.size() == 0) {
-            return MediaType.ANY_APPLICATION_TYPE;
+            return ANY_APPLICATION_TYPE;
         }
         String file = path.getLastElement().toString();
         int ix = file.lastIndexOf(".");
         if (ix < 0) {
-            return MediaType.ANY_APPLICATION_TYPE;
+            return ANY_APPLICATION_TYPE;
         }
         String ext = file.substring(ix + 1);
         switch (ext) {
             case "gz":
-                return MediaType.GZIP;
+                return MimeType.GZIP;
             case "properties":
-                return MediaType.parse("text/x-java-properties");
+                return MimeType.JAVA_PROPERTIES;
             case "html":
-                return MediaType.HTML_UTF_8;
+                return MimeType.HTML_UTF_8;
             case "jar":
-                return MediaType.parse("application/java-archive");
+                return MimeType.create("application", "java-archive");
             case "xml":
             case "pom":
-                return MediaType.XML_UTF_8;
+                return MimeType.XML_UTF_8;
             case "sha1":
             default:
-                return MediaType.PLAIN_TEXT_UTF_8;
+                return MimeType.PLAIN_TEXT_UTF_8;
         }
     }
 

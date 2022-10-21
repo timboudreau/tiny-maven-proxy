@@ -48,7 +48,7 @@ import static com.mastfrog.acteur.server.ServerModule.EVENT_THREADS;
 import static com.mastfrog.acteur.server.ServerModule.MAX_CONTENT_LENGTH;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
 import static com.mastfrog.acteur.server.ServerModule.WORKER_THREADS;
-import com.mastfrog.acteur.util.CacheControl;
+import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.acteur.util.ServerControl;
 import com.mastfrog.bunyan.Log;
 import com.mastfrog.bunyan.Logger;

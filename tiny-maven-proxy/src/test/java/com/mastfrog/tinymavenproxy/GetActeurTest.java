@@ -23,7 +23,6 @@
  */
 package com.mastfrog.tinymavenproxy;
 
-import com.google.common.io.Files;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -34,23 +33,24 @@ import com.mastfrog.acteur.headers.Headers;
 import com.mastfrog.acteur.util.Server;
 import com.mastfrog.acteur.util.ServerControl;
 import com.mastfrog.giulius.Dependencies;
-import com.mastfrog.giulius.ShutdownHookRegistry;
 import com.mastfrog.giulius.tests.GuiceRunner;
 import com.mastfrog.giulius.tests.TestWith;
 import com.mastfrog.netty.http.client.State;
 import com.mastfrog.netty.http.test.harness.TestHarness;
 import com.mastfrog.netty.http.test.harness.TestHarnessModule;
 import com.mastfrog.settings.Settings;
+import com.mastfrog.shutdown.hooks.ShutdownHookRegistry;
 import com.mastfrog.tiny.http.server.Responder;
 import com.mastfrog.tiny.http.server.ResponseHead;
 import com.mastfrog.tiny.http.server.TinyHttpServer;
 import com.mastfrog.tinymavenproxy.GetActeurTest.M;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.DOWNLOAD_LOGGER;
 import static com.mastfrog.util.collections.CollectionUtils.map;
+import com.mastfrog.util.file.FileUtils;
+import com.mastfrog.util.net.PortFinder;
 import com.mastfrog.util.preconditions.Exceptions;
 import com.mastfrog.util.streams.Streams;
 import com.mastfrog.util.strings.Strings;
-import com.mastfrog.util.net.PortFinder;
 import com.mastfrog.util.thread.Receiver;
 import com.mastfrog.util.time.TimeUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -196,7 +196,7 @@ public class GetActeurTest {
                 .setTimeout(timeout)
                 .log()
                 .go()
-//                .assertHasHeader(CONTENT_LENGTH)
+                //                .assertHasHeader(CONTENT_LENGTH)
                 .await()
                 .assertCode(200)
                 .content();
@@ -283,7 +283,12 @@ public class GetActeurTest {
 
         @Override
         protected void configure() {
-            File dir = Files.createTempDir();
+            File dir;
+            try {
+                dir = FileUtils.newTempDir().toFile();
+            } catch (IOException ex) {
+                throw new Error(ex);
+            }
             File indexDir = new File(dir, ".index");
             indexDir.mkdirs();
             int port = new PortFinder().findAvailableServerPort();
@@ -300,7 +305,7 @@ public class GetActeurTest {
                 p.setProperty("hello", "world");
                 p.setProperty("foo", "bar");
                 File f = new File(indexDir, "nexus-maven-repository-index.properties");
-                try (FileOutputStream os = new FileOutputStream(f)) {
+                try ( FileOutputStream os = new FileOutputStream(f)) {
                     p.store(os, "test-file");
                 }
                 Settings settings = Settings.builder()

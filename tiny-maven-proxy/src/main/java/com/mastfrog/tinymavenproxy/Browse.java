@@ -25,8 +25,6 @@ package com.mastfrog.tinymavenproxy;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.net.MediaType;
-import static com.google.common.net.MediaType.JSON_UTF_8;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.name.Named;
@@ -34,13 +32,15 @@ import com.google.inject.util.Providers;
 import com.mastfrog.acteur.Acteur;
 import com.mastfrog.acteur.HttpEvent;
 import com.mastfrog.acteur.annotations.HttpCall;
+import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.acteur.headers.Headers;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
 import com.mastfrog.acteur.preconditions.Description;
 import com.mastfrog.acteur.preconditions.Methods;
 import com.mastfrog.acteur.server.PathFactory;
-import com.mastfrog.acteur.util.CacheControl;
+import com.mastfrog.mime.MimeType;
+import static com.mastfrog.mime.MimeType.JSON_UTF_8;
 import com.mastfrog.url.Path;
 import static com.mastfrog.util.collections.CollectionUtils.map;
 import com.mastfrog.util.strings.Strings;
@@ -88,7 +88,7 @@ public class Browse extends Acteur {
                 return;
             }
             add(Headers.ETAG, indexPageHash.get());
-            add(Headers.CONTENT_TYPE, MediaType.HTML_UTF_8);
+            add(Headers.CONTENT_TYPE, MimeType.HTML_UTF_8);
             if (HEAD.is(evt.method())) {
                 ok();
             } else {
