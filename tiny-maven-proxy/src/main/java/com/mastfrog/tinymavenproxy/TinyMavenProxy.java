@@ -33,6 +33,7 @@ import com.google.inject.name.Names;
 import com.mastfrog.acteur.Acteur;
 import com.mastfrog.acteur.annotations.HttpCall;
 import com.mastfrog.acteur.bunyan.ActeurBunyanModule;
+import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.acteur.headers.Headers;
 import static com.mastfrog.acteur.headers.Method.GET;
 import static com.mastfrog.acteur.headers.Method.HEAD;
@@ -42,23 +43,21 @@ import com.mastfrog.acteur.preconditions.PathRegex;
 import com.mastfrog.acteur.server.ServerBuilder;
 import com.mastfrog.acteur.server.ServerModule;
 import static com.mastfrog.acteur.server.ServerModule.BYTEBUF_ALLOCATOR_SETTINGS_KEY;
-import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
 import static com.mastfrog.acteur.server.ServerModule.DIRECT_ALLOCATOR;
 import static com.mastfrog.acteur.server.ServerModule.EVENT_THREADS;
+import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
 import static com.mastfrog.acteur.server.ServerModule.MAX_CONTENT_LENGTH;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
 import static com.mastfrog.acteur.server.ServerModule.WORKER_THREADS;
-import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.acteur.util.ServerControl;
-import com.mastfrog.bunyan.Log;
-import com.mastfrog.bunyan.Logger;
-import com.mastfrog.bunyan.LoggingModule;
-import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_ASYNC_LOGGING;
-import static com.mastfrog.bunyan.LoggingModule.SETTINGS_KEY_LOG_LEVEL;
-import com.mastfrog.bunyan.type.Info;
+import com.mastfrog.bunyan.java.v2.Log;
+import com.mastfrog.bunyan.java.v2.Logs;
 import static com.mastfrog.giulius.SettingsBindings.BOOLEAN;
 import static com.mastfrog.giulius.SettingsBindings.INT;
 import static com.mastfrog.giulius.SettingsBindings.STRING;
+import com.mastfrog.giulius.bunyan.java.v2.LoggingModule;
+import static com.mastfrog.giulius.bunyan.java.v2.LoggingModule.SETTINGS_KEY_ASYNC_LOGGING;
+import static com.mastfrog.giulius.bunyan.java.v2.LoggingModule.SETTINGS_KEY_LOG_LEVEL;
 import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
@@ -67,8 +66,8 @@ import com.mastfrog.util.libversion.VersionInfo;
 import static com.mastfrog.util.preconditions.Checks.notNull;
 import com.mastfrog.util.preconditions.ConfigurationError;
 import com.mastfrog.util.streams.Streams;
-import com.mastfrog.util.strings.UniqueIDs;
 import com.mastfrog.util.strings.AlignedText;
+import com.mastfrog.util.strings.UniqueIDs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -192,9 +191,10 @@ public class TinyMavenProxy extends AbstractModule {
     static final class StartupLogger {
 
         @Inject
-        StartupLogger(Settings settings, Config config, @Named("startup") Logger startup) {
+        StartupLogger(Settings settings, Config config, @Named("startup") Logs startup) {
             StringBuilder sb = new StringBuilder("TinyMavenProxy 1.5 on port\t" + settings.getInt("port") + " serving:\n");
-            try (Log<Info> log = startup.info("config", config)) {
+            try (Log log = startup.info("config")) {
+                log.add(config);
                 for (URL u : config) {
                     sb.append("\tRepo:\t").append(u).append('\n');
                 }

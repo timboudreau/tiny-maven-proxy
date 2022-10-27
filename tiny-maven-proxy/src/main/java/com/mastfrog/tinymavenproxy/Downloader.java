@@ -31,8 +31,8 @@ import com.google.inject.name.Named;
 import com.mastfrog.acteur.headers.Headers;
 import com.mastfrog.acteur.spi.ApplicationControl;
 import com.mastfrog.acteur.util.RequestID;
-import com.mastfrog.bunyan.Log;
-import com.mastfrog.bunyan.Logger;
+import com.mastfrog.bunyan.java.v2.Log;
+import com.mastfrog.bunyan.java.v2.Logs;
 import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.netty.http.client.ResponseFuture;
 import com.mastfrog.netty.http.client.State;
@@ -79,7 +79,7 @@ public class Downloader {
     private final Config config;
     private final FileFinder finder;
     private final Cache<Path, Path> failedURLs;
-    private final Logger logger;
+    private final Logs logger;
     private final ApplicationControl control;
 
     static final String SID = Long.toString(System.currentTimeMillis(), 36);
@@ -87,7 +87,8 @@ public class Downloader {
     private final UniqueIDs ids;
 
     @Inject
-    public Downloader(HttpClient client, Config config, FileFinder finder, @Named(DOWNLOAD_LOGGER) Logger logger, ApplicationControl control, UniqueIDs ids) {
+    public Downloader(HttpClient client, Config config, FileFinder finder,
+            @Named(DOWNLOAD_LOGGER) Logs logger, ApplicationControl control, UniqueIDs ids) {
         failedURLs = CacheBuilder.newBuilder().expireAfterWrite(config.failedPathCacheMinutes, TimeUnit.MINUTES).build();
         this.client = client;
         this.config = config;
@@ -130,7 +131,7 @@ public class Downloader {
             public void onSuccess(URL u, File file, HttpResponseStatus status, HttpHeaders headers) {
                 config.debugLog("on success A with ", u);
                 if (success.compareAndSet(false, true)) {
-                    try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
+                    try (Log log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
                         for (Map.Entry<URL, ResponseFuture> e : futures.entrySet()) {
                             if (!u.equals(e.getKey())) {
@@ -166,7 +167,7 @@ public class Downloader {
                 config.debugLog("onSuccess b ", u);
                 buf.touch("downloader-onSuccess");
                 if (success.compareAndSet(false, true)) {
-                    try (Log<?> log = logger.info("download").add("dlid", downloadId)) {
+                    try (Log log = logger.info("download").add("dlid", downloadId)) {
                         remaining.set(0);
                         for (Map.Entry<URL, ResponseFuture> e : futures.entrySet()) {
                             if (!u.equals(e.getKey())) {
@@ -204,7 +205,7 @@ public class Downloader {
                 }
                 logger.info("oneDownloadFailed").add("dlid", downloadId).add("u", u.toString()).close();
                 if (remain == 0) {
-                    try (Log<?> log = logger.info("allDownloadsFailed")) {
+                    try (Log log = logger.info("allDownloadsFailed")) {
                         log.add("path", path).add("status", status).add("id", id).add("u", u.toString());
                         receiver.failed(status == null ? HttpResponseStatus.NOT_FOUND : status);
                         failedURLs.put(path, path);
@@ -228,17 +229,17 @@ public class Downloader {
                         public void receive(State<?> t) {
                             config.debugLog("state " + t, u);
                             switch (t.stateType()) {
-                                case Error :
+                                case Error:
                                     State.Error err = (State.Error) t;
                                     err.get().printStackTrace();
                                     impl.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
                                     break;
-                                case ContentReceived :
+                                case ContentReceived:
                                     HttpContent cnt = (HttpContent) t.get();
                                     cnt.touch("RF.onEvent-ContentReceived");
                                     cnt.release();
                                     break;
-                                case FullContentReceived :
+                                case FullContentReceived:
                                     ByteBuf buf = (ByteBuf) t.get();
                                     buf.touch("RF.onEvent-FullContentReceived");
                                     break;
@@ -247,7 +248,7 @@ public class Downloader {
                                     break;
                                 case HeadersReceived:
                                     State.HeadersReceived hr = (State.HeadersReceived) t;
-                                    config.debugLog("Status " + u, () -> new Object[] { hr.get().status() });
+                                    config.debugLog("Status " + u, () -> new Object[]{hr.get().status()});
                                     if (hr.get().status().code() > 399) {
                                         impl.onFail(u, hr.get().status());
                                     }
@@ -367,7 +368,13 @@ public class Downloader {
                 } else if (state.get() instanceof State.Error) {
                     State.Error err = (State.Error) state.get();
                     recv.onFail(u, HttpResponseStatus.INTERNAL_SERVER_ERROR);
-                    try (Log lg = logger.error(err.get() == null ? "Error" : err.get())) {
+                    Throwable thrown = err.get();
+                    try (Log lg = logger.error()) {
+                        if (thrown == null) {
+                            lg.add("error");
+                        } else {
+                            lg.add(thrown);
+                        }
                         lg.add("url", u.toString());
                     }
                 } else if (state.stateType() == StateType.Closed) {

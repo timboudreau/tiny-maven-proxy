@@ -45,8 +45,8 @@ import com.mastfrog.acteur.header.entities.CacheControl;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
-import com.mastfrog.bunyan.Log;
-import com.mastfrog.bunyan.Logger;
+import com.mastfrog.bunyan.java.v2.Log;
+import com.mastfrog.bunyan.java.v2.Logs;
 import com.mastfrog.mime.MimeType;
 import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
@@ -106,7 +106,7 @@ public class GetActeur extends Acteur {
 
     @Inject
     GetActeur(HttpEvent req, Deferral def, Config config, FileFinder finder,
-            Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logger accessLog,
+            Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logs accessLog,
             RequestID id, ApplicationControl ctrl) throws IOException {
         this.ctrl = ctrl;
         setChunked(true);
@@ -130,7 +130,7 @@ public class GetActeur extends Acteur {
         File file = finder.find(path.elideEmptyElements());
         if (file != null) {
             config.debugLog("send existing file ", file);
-            try (Log<?> log = accessLog.info("fetch")) {
+            try (Log log = accessLog.info("fetch")) {
                 log.add("path", path).add("id", id).add("cached", true);
                 add(Headers.LAST_MODIFIED, TimeUtil.fromUnixTimestamp(file.lastModified()).withZoneSameInstant(GMT));
                 add(Headers.CONTENT_TYPE, findMimeType(path));
@@ -212,11 +212,11 @@ public class GetActeur extends Acteur {
     static class ConcludeHttpRequest extends Acteur {
 
         @Inject
-        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logger accessLog,
+        ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logs accessLog,
                 RequestID id, Config config, ApplicationControl ctrl) throws FileNotFoundException, IOException {
             setChunked(true);
             if (!res.isFail()) {
-                try (Log<?> log = accessLog.info("fetch")) {
+                try (Log log = accessLog.info("fetch")) {
                     ok();
                     add(Headers.CONTENT_TYPE, findMimeType(evt.path()));
                     if (res.headers.contains(LAST_MODIFIED.name())) {
@@ -249,14 +249,14 @@ public class GetActeur extends Acteur {
     static final class FW implements ChannelFutureListener {
 
         private final File file;
-        private final Logger logger;
+        private final Logs logger;
         private final Config config;
         private SeekableByteChannel channel;
         private final ByteBuffer buffer;
         private final boolean chunked;
         private final ApplicationControl ctrl;
 
-        FW(File file, Logger logger, Config config, int bufferLength, boolean chunked, ApplicationControl ctrl) {
+        FW(File file, Logs logger, Config config, int bufferLength, boolean chunked, ApplicationControl ctrl) {
             this.file = file;
             this.logger = logger;
             this.config = config;
@@ -315,7 +315,7 @@ public class GetActeur extends Acteur {
         }
     }
 
-    static final FileWriter writerFor(HttpEvent request, File f, Logger logger, Config config, ApplicationControl ctrl, Response resp) throws IOException {
+    static final FileWriter writerFor(HttpEvent request, File f, Logs logger, Config config, ApplicationControl ctrl, Response resp) throws IOException {
         CharSequence acceptEncoding = request.header(ACCEPT_ENCODING);
 
         boolean acceptsGzip = acceptEncoding != null
@@ -408,11 +408,11 @@ public class GetActeur extends Acteur {
     static final class FileWriter implements ChannelFutureListener {
 
         private final File file;
-        private final Logger logger;
+        private final Logs logger;
         private final Config config;
         private final ApplicationControl ctrl;
 
-        FileWriter(File file, Logger logger, Config config, ApplicationControl ctrl) {
+        FileWriter(File file, Logs logger, Config config, ApplicationControl ctrl) {
             this.file = file;
             this.logger = logger;
             this.config = config;
@@ -456,6 +456,7 @@ public class GetActeur extends Acteur {
             this.ctrl = ctrl;
         }
 
+        @Override
         public String toString() {
             return "Responder2 " + buf.toString(UTF_8);
         }

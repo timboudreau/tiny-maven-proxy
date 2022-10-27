@@ -1,34 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <project
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <version>1.12</version>
     <artifactId>tiny-maven-proxy-parent</artifactId>
 
-    <scm>
-        <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
-        <connection>scm:git:https://github.com:timboudreau/tiny-maven-proxy.git</connection>
-        <developerConnection>git@github.com:timboudreau/tiny-maven-proxy.git</developerConnection>
-    </scm>
-    <issueManagement>
-        <system>Github</system>
-        <url>https://github.com/timboudreau/tiny-maven-proxy/issues</url>
-    </issueManagement>
-
-    <organization>
-        <name>Mastfrog Technologies</name>
-        <url>https://mastfrog.com</url>
-    </organization>
-
-    <licenses>
-        <license>
-            <name>MIT</name>
-            <url>https://opensource.org/licenses/MIT</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
     <groupId>com.mastfrog</groupId>
     <name>Tiny Maven Proxy (modules)</name>
     <packaging>pom</packaging>
@@ -36,6 +14,13 @@
         <module>tiny-maven-indexer</module>
         <module>tiny-maven-proxy</module>
     </modules>
+    
+    <properties>
+        <mastfrog.version>2.9.0</mastfrog.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 
     <build>
         <pluginManagement>
@@ -48,7 +33,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.10.0</version>
+                    <version>3.10.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -67,88 +52,10 @@
         <dependencies>
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>acteur</artifactId>
+                <artifactId>mastfrog-parent</artifactId>
                 <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>acteur-bunyan</artifactId>
-                <version>2.6.13</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>acteur-headers</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>bunyan-java</artifactId>
-                <version>2.6.13</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>giulius</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>giulius-settings</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>giulius-tests</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>injection-reflection-indexer</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>netty-http-client</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>netty-http-test-harness</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>tiny-http-server</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>util-function</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>util-misc</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>util-streams</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>util-strings</artifactId>
-                <version>${mastfrog.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.inject</groupId>
-                <artifactId>guice</artifactId>
-                <version>5.1.0</version>
-            </dependency>
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.13.2</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.codehaus.plexus</groupId>
@@ -173,11 +80,27 @@
         </dependencies>
     </dependencyManagement>
 
-    <properties>
-        <jackson.version>2.13.4</jackson.version>
-        <mastfrog.version>2.9.0</mastfrog.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+    <scm>
+        <url>git@github.com:timboudreau/tiny-maven-proxy.git</url>
+        <connection>scm:git:https://github.com:timboudreau/tiny-maven-proxy.git</connection>
+        <developerConnection>git@github.com:timboudreau/tiny-maven-proxy.git</developerConnection>
+    </scm>
+    <issueManagement>
+        <system>Github</system>
+        <url>https://github.com/timboudreau/tiny-maven-proxy/issues</url>
+    </issueManagement>
+
+    <organization>
+        <name>Mastfrog Technologies</name>
+        <url>https://mastfrog.com</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
 </project>

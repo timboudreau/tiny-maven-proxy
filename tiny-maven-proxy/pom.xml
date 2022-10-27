@@ -54,7 +54,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>acteur-bunyan</artifactId>
+            <artifactId>acteur-bunyan-v2</artifactId>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -71,10 +71,6 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>acteur</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>bunyan-java</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
