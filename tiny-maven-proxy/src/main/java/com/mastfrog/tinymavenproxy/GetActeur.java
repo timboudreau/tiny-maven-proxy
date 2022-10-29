@@ -42,14 +42,16 @@ import com.mastfrog.acteur.preconditions.Methods;
 import static com.mastfrog.acteur.server.ServerModule.X_INTERNAL_COMPRESS_HEADER;
 import com.mastfrog.acteur.spi.ApplicationControl;
 import com.mastfrog.acteur.header.entities.CacheControl;
+import static com.mastfrog.acteur.headers.Headers.CONTENT_LENGTH;
 import com.mastfrog.acteur.util.RequestID;
 import com.mastfrog.acteurbase.Deferral;
 import com.mastfrog.acteurbase.Deferral.Resumer;
 import com.mastfrog.bunyan.java.v2.Log;
 import com.mastfrog.bunyan.java.v2.Logs;
 import com.mastfrog.mime.MimeType;
-import com.mastfrog.tinymavenproxy.Downloader.DownloadReceiver;
+import com.mastfrog.tinymavenproxy.DownloadReceiver;
 import com.mastfrog.tinymavenproxy.GetActeur.ConcludeHttpRequest;
+import com.mastfrog.tinymavenproxy.TempFiles.TempFile;
 import static com.mastfrog.tinymavenproxy.TinyMavenProxy.ACCESS_LOGGER;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.streams.Streams;
@@ -69,9 +71,9 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
-import static io.netty.util.CharsetUtil.UTF_8;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -86,6 +88,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.zip.Deflater;
@@ -102,14 +105,15 @@ import java.util.zip.GZIPOutputStream;
         + "and caching the results if necessary")
 public class GetActeur extends Acteur {
 
+    private static final boolean PREFER_CHUNKED = false;
     private final ApplicationControl ctrl;
 
     @Inject
     GetActeur(HttpEvent req, Deferral def, Config config, FileFinder finder,
-            Closables clos, Downloader dl, @Named(ACCESS_LOGGER) Logs accessLog,
+            Closables clos, DownloaderV2A dl, @Named(ACCESS_LOGGER) Logs accessLog,
             RequestID id, ApplicationControl ctrl) throws IOException {
         this.ctrl = ctrl;
-        setChunked(true);
+        setChunked(PREFER_CHUNKED);
         if ("true".equals(req.urlParameter("browse")) || "true".equals(req.urlParameter("index"))) {
             reject();
             return;
@@ -146,15 +150,19 @@ public class GetActeur extends Acteur {
                 }
                 ok();
                 if (req.method() != HEAD) {
-//                    add(Headers.CONTENT_LENGTH, file.length());
+                    if (!PREFER_CHUNKED) {
+                        add(Headers.CONTENT_LENGTH, file.length());
+                    }
                     setResponseBodyWriter(writerFor(req, file, accessLog, config, ctrl, response()));
                 }
             }
         } else {
             if (dl.isFailedPath(path)) {
                 notFound();
-                setChunked(false);
-//                setResponseBodyWriter(ChannelFutureListener.CLOSE);
+//                setChunked(PREFER_CHUNKED);
+                if (req.request().protocolVersion().equals(HttpVersion.HTTP_1_0)) {
+                    setResponseBodyWriter(ChannelFutureListener.CLOSE);
+                }
                 return;
             }
             String el = path.getLastElement().toString();
@@ -171,9 +179,15 @@ public class GetActeur extends Acteur {
             Path pth = path.elideEmptyElements();
             def.defer((Resumer res) -> {
                 config.debugLog("  defer and download ", pth);
-                ChannelFutureListener l = dl.download(pth, id, new DownloadReceiverImpl(res, config));
-                req.channel().closeFuture().addListener(l);
+                CompletableFuture<TempFile> l = dl.download(pth, id, new DownloadReceiverImpl(res, config));
+                req.channel().closeFuture().addListener(cl -> {
+                    l.cancel(false);
+                });
+
+//                ChannelFutureListener l = dl.download(pth, id, new DownloadReceiverImpl(res, config));
+//                req.channel().closeFuture().addListener(l);
             });
+
             next();
         }
     }
@@ -214,8 +228,9 @@ public class GetActeur extends Acteur {
         @Inject
         ConcludeHttpRequest(HttpEvent evt, DownloadResult res, @Named(ACCESS_LOGGER) Logs accessLog,
                 RequestID id, Config config, ApplicationControl ctrl) throws FileNotFoundException, IOException {
-            setChunked(true);
+
             if (!res.isFail()) {
+                setChunked(PREFER_CHUNKED);
                 try (Log log = accessLog.info("fetch")) {
                     ok();
                     add(Headers.CONTENT_TYPE, findMimeType(evt.path()));
@@ -230,17 +245,24 @@ public class GetActeur extends Acteur {
                             setResponseBodyWriter(writerFor(evt, res.file, accessLog, config, ctrl, response()));
                         } else {
                             log.add("internalBuffer", true);
-                            setResponseBodyWriter(new Responder2(res.buf, config, true, ctrl));
+                            setResponseBodyWriter(new Responder2(res.buf, config, PREFER_CHUNKED, ctrl));
                         }
                     }
                     log.add("path", evt.path()).add("id", id).add("cached", false);
                 }
             } else if (res.isFail() && res.buf != null) {
                 reply(res.status);
-//                setResponseWriter(new Responder(res.buf, config));
-                setResponseBodyWriter(new Responder2(res.buf, config, true, ctrl));
+                return;
+//                if (!PREFER_CHUNKED) {
+//                    add(CONTENT_LENGTH, 0);
+//                    return;
+//                } else {
+//                    setChunked(true);
+//                }
+////                setResponseWriter(new Responder(res.buf, config));
+//                setResponseBodyWriter(new Responder2(res.buf, config, false, ctrl));
             } else {
-                reply(NOT_FOUND, "Not cached and could not download " + evt.path());
+                reply(NOT_FOUND);
 //                reject();
             }
         }
@@ -325,15 +347,21 @@ public class GetActeur extends Acteur {
 
         long uncompressedLength = f.length();
 
-        resp.chunked(true);
+        resp.chunked(PREFER_CHUNKED);
         if (!acceptsGzip) {
             resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.IDENTITY);
-            resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+            if (!PREFER_CHUNKED) {
+                resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+            }
+            resp.chunked(false);
             return new FileWriter(f, logger, config, ctrl);
         } else {
             if (isGzipCacheFile(f)) {
                 resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.IDENTITY);
-                resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+                if (!PREFER_CHUNKED) {
+                    resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+                }
+                resp.chunked(false);
                 return new FileWriter(f, logger, config, ctrl);
             }
             File gzippedFile = new File(f.getParentFile(), "_" + f.getName() + ".gz");
@@ -358,10 +386,14 @@ public class GetActeur extends Acteur {
             long compressedLength = gzippedFile.length();
             if (compressedLength > uncompressedLength) {
                 resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.IDENTITY);
-                resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+                if (!PREFER_CHUNKED) {
+                    resp.add(Headers.CONTENT_LENGTH, uncompressedLength);
+                }
                 return new FileWriter(f, logger, config, ctrl);
             }
-            resp.add(Headers.CONTENT_LENGTH, compressedLength);
+            if (!PREFER_CHUNKED) {
+                resp.add(Headers.CONTENT_LENGTH, compressedLength);
+            }
             resp.add(X_INTERNAL_COMPRESS_HEADER, "true");
             resp.add(Headers.CONTENT_ENCODING, HttpHeaderValues.GZIP);
             return new FileWriter(gzippedFile, logger, config, ctrl);
@@ -437,6 +469,7 @@ public class GetActeur extends Acteur {
             }
         }
 
+        @Override
         public String toString() {
             return "FileWriter-" + file.getName();
         }
@@ -458,7 +491,7 @@ public class GetActeur extends Acteur {
 
         @Override
         public String toString() {
-            return "Responder2 " + buf.toString(UTF_8);
+            return "Responder2-" + buf.readableBytes();
         }
 
         @Override
@@ -480,8 +513,8 @@ public class GetActeur extends Acteur {
 
     private static class DownloadReceiverImpl implements DownloadReceiver {
 
-        private final Resumer r;
-        private final Config config;
+        final Resumer r;
+        final Config config;
 
         public DownloadReceiverImpl(Resumer r, Config config) {
             this.r = new WrapperResumer(r);
@@ -509,6 +542,9 @@ public class GetActeur extends Acteur {
         @Override
         public void failed(HttpResponseStatus status, String msg) {
             config.debugLog("  fail ", status, msg);
+            if (msg == null) {
+                msg = "no-message";
+            }
             ByteBuf buf = Unpooled.buffer(msg.length() + 4);
             buf.writeCharSequence(msg, CharsetUtil.UTF_8);
             buf.writeChar('\n');

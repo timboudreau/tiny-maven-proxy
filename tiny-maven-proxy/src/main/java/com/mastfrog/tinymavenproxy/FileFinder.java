@@ -27,6 +27,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.mastfrog.acteur.server.ServerModule;
 import static com.mastfrog.tinymavenproxy.GetActeur.isGzipCacheFile;
+import com.mastfrog.tinymavenproxy.TempFiles.TempFile;
 import com.mastfrog.url.Path;
 import com.mastfrog.util.streams.Streams;
 import com.mastfrog.util.time.TimeUtil;
@@ -37,7 +38,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.ZonedDateTime;
 import java.util.concurrent.ExecutorService;
 
@@ -75,33 +78,11 @@ public class FileFinder {
         return null;
     }
 
-    public synchronized File put(final Path path, final File file, final ZonedDateTime lastModified) throws IOException {
-        if (file.length() == 0) {
-            return file;
-        }
-        final File target = new File(config.dir, path.toString().replace('/', File.separatorChar));
-
-        if (!target.getParentFile().exists() && !target.getParentFile().mkdirs()) {
-            throw new IOException("Could not create dirs " + target.getParent());
-        }
-
-        // It is possible to download such a file from a remote instance of tiny-maven-proxy - 
-        // in which case, don't make another
-        if (!isGzipCacheFile(file)) {
-            File gzipped = GetActeur.gzip(file);
-            File gzippedDest = new File(target.getParentFile(), "_" + target.getName() + ".gz");
-            Files.move(gzipped.toPath(), gzippedDest.toPath());
-        }
-
-        Files.move(file.toPath(), target.toPath());
-
-//        if (!file.renameTo(target)) {
-//            throw new ResponseException(INTERNAL_SERVER_ERROR, "Could not rename " + file + " to " + target);
-//        }
-        if (lastModified != null) {
-            target.setLastModified(lastModified.toInstant().toEpochMilli());
-        }
-        return target;
+    public synchronized File put(final Path path, final TempFile file) throws IOException {
+        java.nio.file.Path target = config.dir.toPath()
+                .resolve(path.toString());
+        file.close(target);
+        return target.toFile();
     }
 
     public synchronized void put(final Path path, final ByteBuf content, final ZonedDateTime lastModified) {
@@ -126,7 +107,7 @@ public class FileFinder {
             }
             try (ByteBufInputStream in = new ByteBufInputStream(buf)) {
                 try (OutputStream out = new BufferedOutputStream(new FileOutputStream(target))) {
-                    Streams.copy(in, out, 1024);
+                    Streams.copy(in, out, Math.min(content.readableBytes(), 1024));
                 }
             } catch (IOException ioe) {
                 if (target.exists()) {

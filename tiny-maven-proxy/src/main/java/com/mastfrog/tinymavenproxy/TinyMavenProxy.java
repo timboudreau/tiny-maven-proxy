@@ -46,7 +46,6 @@ import static com.mastfrog.acteur.server.ServerModule.BYTEBUF_ALLOCATOR_SETTINGS
 import static com.mastfrog.acteur.server.ServerModule.DIRECT_ALLOCATOR;
 import static com.mastfrog.acteur.server.ServerModule.EVENT_THREADS;
 import static com.mastfrog.acteur.server.ServerModule.HTTP_COMPRESSION;
-import static com.mastfrog.acteur.server.ServerModule.MAX_CONTENT_LENGTH;
 import static com.mastfrog.acteur.server.ServerModule.PORT;
 import static com.mastfrog.acteur.server.ServerModule.WORKER_THREADS;
 import com.mastfrog.acteur.util.ServerControl;
@@ -58,7 +57,6 @@ import static com.mastfrog.giulius.SettingsBindings.STRING;
 import com.mastfrog.giulius.bunyan.java.v2.LoggingModule;
 import static com.mastfrog.giulius.bunyan.java.v2.LoggingModule.SETTINGS_KEY_ASYNC_LOGGING;
 import static com.mastfrog.giulius.bunyan.java.v2.LoggingModule.SETTINGS_KEY_LOG_LEVEL;
-import com.mastfrog.netty.http.client.HttpClient;
 import com.mastfrog.settings.Settings;
 import com.mastfrog.settings.SettingsBuilder;
 import com.mastfrog.url.URL;
@@ -71,17 +69,18 @@ import com.mastfrog.util.strings.UniqueIDs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelOption;
 import static io.netty.handler.codec.http.HttpResponseStatus.GONE;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpClient;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Base64;
+import java.util.concurrent.ExecutorService;
 
 /**
  *
@@ -95,35 +94,46 @@ public class TinyMavenProxy extends AbstractModule {
     public static final String ACCESS_LOGGER = ActeurBunyanModule.ACCESS_LOGGER;
     public static final String ERROR_LOGGER = ActeurBunyanModule.ERROR_LOGGER;
     public static final String SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE = "download.chunk.size";
+    public static final String SETTINGS_KEY_HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS
+            = "http.client.connect.timeout.seconds";
     static final int DEFAULT_DOWNLOAD_CHUNK_SIZE = 1480;
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        Settings settings = new SettingsBuilder(APPLICATION_NAME)
+    static SettingsBuilder defaultSettings() {
+        return new SettingsBuilder(APPLICATION_NAME)
                 .add("application.name", APPLICATION_NAME)
                 .add("cors.enabled", false)
+                .add("download-tmp", System.getProperty("java.io.tmpdir"))
                 .add(HTTP_COMPRESSION, "false")
                 .add(SETTINGS_KEY_DOWNLOAD_THREADS, "24")
                 .add(SETTINGS_KEY_ASYNC_LOGGING, false)
-                .add(LoggingModule.SETTINGS_KEY_LOG_TO_CONSOLE, false)
-                .add(LoggingModule.SETTINGS_KEY_LOG_FILE, "/tmp/tmproxy.log")
+                .add(LoggingModule.SETTINGS_KEY_LOG_TO_CONSOLE, true)
                 .add(WORKER_THREADS, "6")
                 .add(EVENT_THREADS, "3")
                 .add(ServerModule.SETTINGS_KEY_SOCKET_WRITE_SPIN_COUNT, 32)
                 .add(SETTINGS_KEY_LOG_LEVEL, "trace")
-                .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
+//                .add(MAX_CONTENT_LENGTH, "128") // we don't accept PUTs, no need for a big buffer
                 .add(PORT, "5956")
-                .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, DIRECT_ALLOCATOR)
+                .add(BYTEBUF_ALLOCATOR_SETTINGS_KEY, DIRECT_ALLOCATOR);
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+
+        System.setProperty("acteur.debug", "true");
+
+        Settings settings = defaultSettings()
+                .add(LoggingModule.SETTINGS_KEY_LOG_TO_CONSOLE, true)
+                .add(LoggingModule.SETTINGS_KEY_LOG_FILE, "/tmp/tmproxy.log")
                 .addFilesystemAndClasspathLocations()
                 .parseCommandLineArguments(args).build();
         ServerControl ctrl = new ServerBuilder(APPLICATION_NAME)
                 .add(new TinyMavenProxy())
                 .add(new ActeurBunyanModule(true)
                         .bindLogger(DOWNLOAD_LOGGER).bindLogger("startup")
-                //                        .useProbe(false)
                 )
                 .add(binder -> {
                     binder.bind(VersionInfo.class)
-                            .toInstance(VersionInfo.find(TinyMavenProxy.class, "com.mastfrog", "tiny-maven-proxy"));
+                            .toInstance(VersionInfo.find(TinyMavenProxy.class,
+                                    "com.mastfrog", "tiny-maven-proxy"));
 
                 })
                 .disableCORS()
@@ -136,11 +146,12 @@ public class TinyMavenProxy extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(HttpClient.class).toProvider(HttpClientProvider.class);
+        bind(HttpClient.class).toProvider(JavaHttpClientProvider.class).in(Scopes.SINGLETON);
         bind(StartupLogger.class).asEagerSingleton();
         bind(UniqueIDs.class).toProvider(UniqueIDsProvider.class).in(Scopes.SINGLETON);
         bind(ByteBuf.class).annotatedWith(Names.named("index")).toProvider(IndexPageProvider.class);
         bind(String.class).annotatedWith(Names.named("indexHash")).toProvider(IndexPageHashProvider.class);
+        bind(String.class).annotatedWith(Names.named("runId")).toProvider(RunIdProvider.class).in(Scopes.SINGLETON);
     }
 
     @Singleton
@@ -173,6 +184,43 @@ public class TinyMavenProxy extends AbstractModule {
     public static final String SETTINGS_KEY_UIDS_FILE = "uids.base";
 
     @Singleton
+    static final class RunIdProvider implements Provider<String> {
+
+        private final String runId;
+
+        @Inject
+        RunIdProvider(UniqueIDs ids) {
+            runId = ids.newId();
+        }
+
+        @Override
+        public String get() {
+            return runId;
+        }
+    }
+
+    @Singleton
+    static class JavaHttpClientProvider implements Provider<HttpClient> {
+
+        private final java.net.http.HttpClient client;
+
+        @Inject
+        JavaHttpClientProvider(@Named(ServerModule.BACKGROUND_THREAD_POOL_NAME) ExecutorService executor,
+                Settings settings) {
+            client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(
+                            settings.getLong(SETTINGS_KEY_HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS, 20)))
+                    .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
+                    .build();
+        }
+
+        @Override
+        public HttpClient get() {
+            return client;
+        }
+    }
+
+    @Singleton
     static final class UniqueIDsProvider implements Provider<UniqueIDs> {
 
         private final UniqueIDs uniqueIds;
@@ -203,6 +251,7 @@ public class TinyMavenProxy extends AbstractModule {
                     sb.append(key).append("\t").append(settings.getString(key)).append('\n');
                     log.add(key, settings.getString(key));
                 }
+                sb.append("From:\n").append(config.dir);
             }
             System.out.println(AlignedText.formatTabbed(sb));
         }
@@ -255,26 +304,4 @@ public class TinyMavenProxy extends AbstractModule {
         }
     }
 
-    @Singleton
-    static class HttpClientProvider implements Provider<HttpClient> {
-
-        private final HttpClient client;
-
-        @Inject
-        HttpClientProvider(ByteBufAllocator alloc, @Named(SETTINGS_KEY_DOWNLOAD_THREADS) int downloadThreads) {
-            client = HttpClient.builder()
-                    .followRedirects()
-                    .useCompression()
-                    .setUserAgent("tiny-maven-proxy-1.6")
-                    .setChannelOption(ChannelOption.ALLOCATOR, alloc)
-                    .setChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                    .threadCount(downloadThreads)
-                    .maxChunkSize(16384).build();
-        }
-
-        @Override
-        public HttpClient get() {
-            return client;
-        }
-    }
 }

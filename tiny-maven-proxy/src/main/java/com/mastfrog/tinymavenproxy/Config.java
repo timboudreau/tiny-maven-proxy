@@ -44,6 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.netbeans.validation.api.Problems;
 
 /**
  *
@@ -56,15 +57,11 @@ public class Config implements Iterable<URL> {
     public static final String MAVEN_CACHE_DIR = "maven.dir";
     public static final String SETTINGS_KEY_CACHE_FAILED_PATHS_MINUTES = "failed.path.cache.minutes";
     public static final String SETTINGS_KEY_INDEX_DIR = "index.dir";
-    private static final String DEFAULT_URLS = "https://repo.maven.apache.org/maven2/"
-            + ",http://bits.netbeans.org/nexus/content/groups/netbeans/"
-            //            + ",http://bits.netbeans.org/maven2/"
-            + ",http://bits.netbeans.org/nexus/content/repositories/snapshots/"
-            + ",https://timboudreau.com/maven/"
-            + ",https://maven.java.net/content/groups/public/"
-            + ",https://oss.sonatype.org/content/repositories/snapshots/"
-            + ",https://oss.sonatype.org/content/repositories/releases/"
-            + ",https://oss.sonatype.org/"
+    private static final String DEFAULT_URLS
+            = "https://repo.maven.apache.org/maven2/,"
+            + "https://repo1.maven.org/maven2/,"
+            + ",https://oss.sonatype.org/content/repositories/snapshots/,"
+            + ",https://oss.sonatype.org/content/repositories/releases/,"
             + ",https://maven.atlassian.com/3rdparty/";
 
     private final URL[] urls;
@@ -80,15 +77,27 @@ public class Config implements Iterable<URL> {
         bufferSize = s.getInt(SETTINGS_KEY_DOWNLOAD_CHUNK_SIZE, 1480);
         debugLog = s.getBoolean("maven.proxy.debug", false);
         String[] u = s.getString(SETTINGS_KEY_MIRROR_URLS, DEFAULT_URLS).split(",");
-        urls = new URL[u.length];
+        List<URL> urls = new ArrayList<>();
         for (int i = 0; i < u.length; i++) {
-            String mirror = u[i];
-            urls[i] = URL.parse(mirror);
-            if (!urls[i].isValid()) {
-                urls[i].getProblems().throwIfFatalPresent();
+            String mirror = u[i].trim();
+            if (mirror.isEmpty()) {
+                continue;
             }
+            URL uu = URL.parse(mirror);
+            if (!uu.isValid()) {
+                Problems p = uu.getProblems();
+                if (p.hasFatal()) {
+                    throw new ConfigurationError("Fatal problem with " + uu
+                            + " for " + mirror + ": " + p);
+                }
+            }
+            urls.add(uu);
         }
-        debugLog("START WITH URLS ", () -> new Object[]{Strings.commas(urls)});
+        if (urls.isEmpty()) {
+            throw new ConfigurationError("No urls to proxy");
+        }
+        this.urls = urls.toArray(URL[]::new);
+        debugLog("START WITH URLS ", () -> new Object[]{Strings.commas(this.urls)});
         String dirname = s.getString(MAVEN_CACHE_DIR);
         if (dirname == null) {
             File tmp = new File(System.getProperty("java.io.tmpdir"));
